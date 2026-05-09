@@ -1,6 +1,7 @@
 import os
 import io
 import re
+import html as html_lib
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
@@ -9,6 +10,12 @@ import httpx
 from dotenv import load_dotenv
 from fpdf import FPDF
 from pypdf import PdfReader
+
+try:
+    from weasyprint import HTML as WeasyHTML
+    WEASYPRINT_AVAILABLE = True
+except ImportError:
+    WEASYPRINT_AVAILABLE = False
 
 load_dotenv()
 
@@ -47,6 +54,110 @@ class TailorResponse(BaseModel):
 
 class PdfRequest(BaseModel):
     text: str
+    template: str = "default"
+
+
+# ── WeasyPrint templates ───────────────────────────────────────────
+
+_MODERN_CSS = """
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "DejaVu Sans", sans-serif; color: #1e1e1e; font-size: 10pt; }
+.resume-header {
+  padding: 26px 32px 22px 38px;
+  background: #0f172a;
+  border-left: 6px solid #38bdf8;
+}
+.name { font-size: 21pt; font-weight: bold; color: #f1f5f9; line-height: 1.2; }
+.subtitle { font-size: 10pt; color: #94a3b8; margin-top: 5px; line-height: 1.5; }
+.resume-body { padding: 16px 32px 24px; }
+.section-title {
+  font-size: 7.5pt; font-weight: bold; text-transform: uppercase;
+  letter-spacing: 1.4px; color: #0284c7; margin-top: 14px; margin-bottom: 2px;
+}
+.section-rule { height: 1.5px; background: #e2e8f0; margin-bottom: 7px; }
+.bullet { display: flex; gap: 7px; align-items: flex-start; margin: 2px 0; line-height: 1.45; }
+.dot { color: #38bdf8; flex-shrink: 0; font-size: 11pt; }
+.bullet-text { color: #1e293b; }
+.text { color: #1e293b; margin: 2px 0; line-height: 1.45; }
+.muted { color: #64748b; margin: 2px 0; line-height: 1.45; }
+"""
+
+_CORPORATE_CSS = """
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "DejaVu Sans", sans-serif; color: #1e1e1e; font-size: 10pt; }
+.resume-header {
+  padding: 28px 36px 20px;
+  background: #f8fafc;
+  border-bottom: 3px solid #1e3a5f;
+}
+.name { font-size: 23pt; font-weight: bold; color: #1e3a5f; line-height: 1.2; }
+.subtitle { font-size: 10pt; color: #4b5563; margin-top: 5px; line-height: 1.5; }
+.resume-body { padding: 16px 36px 28px; }
+.section-title {
+  font-size: 7.5pt; font-weight: bold; text-transform: uppercase;
+  letter-spacing: 2px; color: #1e3a5f; margin-top: 16px; margin-bottom: 3px;
+}
+.section-rule { height: 1px; background: #1e3a5f; opacity: 0.25; margin-bottom: 7px; }
+.bullet { display: flex; gap: 8px; align-items: flex-start; margin: 3px 0; line-height: 1.45; }
+.dot { color: #1e3a5f; flex-shrink: 0; }
+.bullet-text { color: #1e1e1e; }
+.text { color: #1e1e1e; margin: 2px 0; line-height: 1.45; }
+.muted { color: #6b7280; margin: 3px 0; line-height: 1.45; }
+"""
+
+
+def _parse_resume(text: str) -> dict:
+    lines = text.split("\n")
+    header_lines, i = [], 0
+    while i < len(lines) and lines[i].strip():
+        header_lines.append(lines[i].strip())
+        i += 1
+    return {
+        "name": header_lines[0] if header_lines else "",
+        "subtitles": header_lines[1:],
+        "body_lines": lines[i:],
+    }
+
+
+def _render_body_html(body_lines: list) -> str:
+    parts = []
+    for line in body_lines:
+        s = line.strip()
+        if not s:
+            continue
+        is_section = s.endswith(":") and len(s) < 80 and s[0] not in ("*", "-", "•")
+        is_bullet  = len(s) > 2 and s[0] in ("*", "-", "•") and s[1] == " "
+        if is_section:
+            t = html_lib.escape(s[:-1])
+            parts.append(f'<div class="section-title">{t}</div><div class="section-rule"></div>')
+        elif is_bullet:
+            t = html_lib.escape(s[2:].strip())
+            parts.append(f'<div class="bullet"><span class="dot">•</span><span class="bullet-text">{t}</span></div>')
+        elif s.startswith("—") or s.startswith("–"):
+            parts.append(f'<div class="muted">{html_lib.escape(s)}</div>')
+        else:
+            parts.append(f'<div class="text">{html_lib.escape(s)}</div>')
+    return "\n".join(parts)
+
+
+def build_pdf_weasyprint(text: str, template: str) -> bytes:
+    r = _parse_resume(text)
+    name = html_lib.escape(r["name"])
+    subtitles_html = "".join(
+        f'<div class="subtitle">{html_lib.escape(s)}</div>' for s in r["subtitles"]
+    )
+    body_html = _render_body_html(r["body_lines"])
+    css = _MODERN_CSS if template == "modern" else _CORPORATE_CSS
+    full_html = (
+        f'<!DOCTYPE html><html><head><meta charset="utf-8">'
+        f'<style>{css}</style></head><body>'
+        f'<div class="resume-header"><div class="name">{name}</div>{subtitles_html}</div>'
+        f'<div class="resume-body">{body_html}</div>'
+        f'</body></html>'
+    )
+    return WeasyHTML(string=full_html).write_pdf()
 
 
 def build_pdf(text: str) -> bytes:
@@ -246,7 +357,14 @@ async def export_pdf(request: PdfRequest):
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Текст пустой")
     try:
-        pdf_bytes = build_pdf(request.text)
+        if request.template in ("modern", "corporate"):
+            if not WEASYPRINT_AVAILABLE:
+                raise HTTPException(status_code=501, detail="WeasyPrint не установлен")
+            pdf_bytes = build_pdf_weasyprint(request.text, request.template)
+        else:
+            pdf_bytes = build_pdf(request.text)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка генерации PDF: {e}")
     return Response(

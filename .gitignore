@@ -1,2 +1,6 @@
 .env
 .claude
+backend/test-pdf/
+CLAUDE.md
+.rtk/
+.codex

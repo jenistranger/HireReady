@@ -23,12 +23,39 @@ const expandModal         = document.getElementById('expand-modal');
 const expandContent       = document.getElementById('expand-content');
 const expandClose         = document.getElementById('expand-close');
 const previewDownloadIcon = document.getElementById('preview-download-icon');
+const clearResumeBtn      = document.getElementById('clear-resume-btn');
+const clearJobBtn         = document.getElementById('clear-job-btn');
+const expandResumeBtn     = document.getElementById('expand-resume-btn');
+const expandJobBtn        = document.getElementById('expand-job-btn');
+const inputExpandModal    = document.getElementById('input-expand-modal');
+const inputExpandTitle    = document.getElementById('input-expand-title');
+const inputExpandTextarea = document.getElementById('input-expand-textarea');
+const inputExpandClose    = document.getElementById('input-expand-close');
+const inputExpandSave     = document.getElementById('input-expand-save');
+const inputExpandCancel   = document.getElementById('input-expand-cancel');
+const inputExpandCounter  = document.getElementById('input-expand-char-counter');
 const linkOverlay         = document.getElementById('link-overlay');
 const linkInput           = document.getElementById('link-input');
 const linkCancel          = document.getElementById('link-cancel');
 const linkFetch           = document.getElementById('link-fetch');
 
-let currentResult = '';
+let currentResult   = '';
+let currentTemplate = 'default';
+
+// ── Template selector ─────────────────────────────────────────────
+function applyTemplateToPreview() {
+  previewResult.dataset.template   = currentTemplate;
+  expandContent.dataset.template   = currentTemplate;
+}
+
+document.querySelectorAll('.btn-tpl').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.btn-tpl').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTemplate = btn.dataset.tpl;
+    applyTemplateToPreview();
+  });
+});
 
 // ── Character counters ────────────────────────────────────────────
 resumeTextarea.addEventListener('input', () => {
@@ -36,6 +63,62 @@ resumeTextarea.addEventListener('input', () => {
 });
 jobTextarea.addEventListener('input', () => {
   jobCounter.textContent = `${jobTextarea.value.length} / 5000`;
+});
+
+// ── Clear buttons ─────────────────────────────────────────────────
+clearResumeBtn.addEventListener('click', () => {
+  resumeTextarea.value = '';
+  resumeCounter.textContent = '0 / 3000';
+});
+clearJobBtn.addEventListener('click', () => {
+  jobTextarea.value = '';
+  jobCounter.textContent = '0 / 5000';
+});
+
+// ── Input expand modal ────────────────────────────────────────────
+let _expandTarget = null;
+let _expandMax = 0;
+let _expandCounterEl = null;
+
+function openInputExpand(textarea, counter, max, title) {
+  _expandTarget    = textarea;
+  _expandMax       = max;
+  _expandCounterEl = counter;
+  inputExpandTitle.textContent = title;
+  inputExpandTextarea.value = textarea.value;
+  inputExpandTextarea.maxLength = max;
+  inputExpandCounter.textContent = `${textarea.value.length} / ${max}`;
+  inputExpandModal.classList.add('open');
+  inputExpandTextarea.focus();
+}
+
+function saveInputExpand() {
+  if (!_expandTarget) return;
+  _expandTarget.value = inputExpandTextarea.value.slice(0, _expandMax);
+  _expandCounterEl.textContent = `${_expandTarget.value.length} / ${_expandMax}`;
+  closeInputExpand();
+}
+
+function closeInputExpand() {
+  inputExpandModal.classList.remove('open');
+  _expandTarget = null;
+}
+
+inputExpandTextarea.addEventListener('input', () => {
+  inputExpandCounter.textContent = `${inputExpandTextarea.value.length} / ${_expandMax}`;
+});
+
+expandResumeBtn.addEventListener('click', () =>
+  openInputExpand(resumeTextarea, resumeCounter, 3000, 'YOUR RESUME')
+);
+expandJobBtn.addEventListener('click', () =>
+  openInputExpand(jobTextarea, jobCounter, 5000, 'JOB VACANCY')
+);
+inputExpandSave.addEventListener('click', saveInputExpand);
+inputExpandCancel.addEventListener('click', closeInputExpand);
+inputExpandClose.addEventListener('click', closeInputExpand);
+inputExpandModal.addEventListener('click', (e) => {
+  if (e.target === inputExpandModal) closeInputExpand();
 });
 
 // ── PDF upload — resume ───────────────────────────────────────────
@@ -166,6 +249,7 @@ function showResult(text) {
   previewLoading.style.display  = 'none';
   previewResult.style.display   = 'block';
   previewResult.innerHTML = renderResumeHtml(text);
+  previewResult.dataset.template = currentTemplate;
 
   pdfBtn.disabled  = false;
   copyBtn.disabled = false;
@@ -180,7 +264,7 @@ async function downloadPdf() {
     const resp = await fetch('/api/pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: currentResult }),
+      body: JSON.stringify({ text: currentResult, template: currentTemplate }),
     });
     if (!resp.ok) {
       const data = await resp.json();
@@ -228,6 +312,7 @@ copyBtn.addEventListener('click', async () => {
 expandBtn.addEventListener('click', () => {
   if (!currentResult) return;
   expandContent.innerHTML = renderResumeHtml(currentResult);
+  expandContent.dataset.template = currentTemplate;
   expandModal.classList.add('open');
 });
 expandClose.addEventListener('click', () => expandModal.classList.remove('open'));
@@ -235,7 +320,10 @@ expandModal.addEventListener('click', (e) => {
   if (e.target === expandModal) expandModal.classList.remove('open');
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') expandModal.classList.remove('open');
+  if (e.key === 'Escape') {
+    expandModal.classList.remove('open');
+    closeInputExpand();
+  }
 });
 
 // ── Error helpers ─────────────────────────────────────────────────
