@@ -42,6 +42,15 @@ SYSTEM_PROMPT = """Ты — профессиональный HR-консульт
 
 app = FastAPI(title="Resume Tailor")
 
+if os.getenv("DEV_MODE") == "1":
+    from fastapi.middleware.cors import CORSMiddleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
 
 class TailorRequest(BaseModel):
     resume: str

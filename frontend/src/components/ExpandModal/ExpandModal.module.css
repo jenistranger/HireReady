@@ -1,0 +1,39 @@
+.overlay {
+  display: flex; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55); z-index: 200;
+  align-items: center; justify-content: center;
+}
+
+.inner {
+  background: #f0f2f5; border-radius: 14px;
+  width: min(500px, 92vw);
+  display: flex; flex-direction: column;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+  overflow: hidden; max-height: 90vh;
+}
+
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid rgba(226,230,238,1); flex-shrink: 0;
+}
+.header span {
+  font-size: 13px; font-family: "Plus Jakarta Sans-SemiBold"; color: rgba(30,30,30,1);
+}
+
+/* A4 height for 500px wide = 500*(297/210) = ~707px */
+.content {
+  min-height: 707px; overflow-y: auto;
+  font-family: "Plus Jakarta Sans-Regular";
+  background: white;
+}
+
+/* Scale up rv-* elements for expand view */
+.content :global(.rv-header) { padding: 22px 32px 22px 38px; }
+.content :global(.rv-header::before) { width: 6px; }
+.content :global(.rv-name) { font-size: 22px; }
+.content :global(.rv-subtitle) { font-size: 12px; }
+.content :global(.rv-body) { padding: 18px 32px 28px; }
+.content :global(.rv-section-title) { font-size: 10px; margin-top: 16px; }
+.content :global(.rv-bullet) { font-size: 12.5px; }
+.content :global(.rv-text) { font-size: 12.5px; }
+.content :global(.rv-muted) { font-size: 12.5px; }
