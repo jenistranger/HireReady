@@ -38,6 +38,15 @@ const linkOverlay         = document.getElementById('link-overlay');
 const linkInput           = document.getElementById('link-input');
 const linkCancel          = document.getElementById('link-cancel');
 const linkFetch           = document.getElementById('link-fetch');
+const profileBtn          = document.getElementById('profile-btn');
+const profileModal        = document.getElementById('profile-modal');
+const profileClose        = document.getElementById('profile-close');
+const profileCancel       = document.getElementById('profile-cancel');
+
+profileBtn.addEventListener('click', () => profileModal.classList.add('open'));
+profileClose.addEventListener('click', () => profileModal.classList.remove('open'));
+profileCancel.addEventListener('click', () => profileModal.classList.remove('open'));
+profileModal.addEventListener('click', e => { if (e.target === profileModal) profileModal.classList.remove('open'); });
 
 let currentResult   = '';
 let currentTemplate = 'default';

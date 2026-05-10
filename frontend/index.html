@@ -268,6 +268,103 @@ html, body { width: 100%; height: 100%; background: white; }
 [data-template="corporate"] .rv-section-line { background: rgba(30,58,95,0.3); }
 [data-template="corporate"] .rv-dot { color: #1e3a5f; }
 
+/* Profile modal */
+#profile-modal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45); z-index: 400;
+  align-items: center; justify-content: center;
+}
+#profile-modal.open { display: flex; }
+.profile-inner {
+  background: white; border-radius: 16px;
+  width: min(480px, 92vw);
+  display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+  overflow: hidden;
+}
+.profile-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px; border-bottom: 1px solid rgba(226,230,238,1);
+}
+.profile-header-title {
+  font-size: 11px; font-family: "Plus Jakarta Sans-SemiBold";
+  letter-spacing: 1.1px; color: rgba(138,143,158,1);
+}
+.profile-body { display: flex; flex-direction: column; padding: 28px 24px; gap: 24px; }
+.profile-avatar-section {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.profile-avatar-lg {
+  width: 80px; height: 80px; border-radius: 40px;
+  background: var(--accent-light); display: flex;
+  align-items: center; justify-content: center; flex-shrink: 0;
+}
+.profile-avatar-lg span {
+  font-size: 26px; font-family: "Plus Jakarta Sans-SemiBold"; color: var(--accent);
+}
+.btn-change-photo {
+  height: 30px; padding: 0 14px; border-radius: 8px;
+  border: 1px solid rgba(226,230,238,1); background: transparent;
+  font-size: 12px; font-family: "Plus Jakarta Sans-SemiBold";
+  color: rgba(138,143,158,1); cursor: pointer; transition: background 0.15s;
+}
+.btn-change-photo:hover { background: rgba(244,246,249,1); }
+.profile-divider { width: 100%; height: 1px; background: rgba(226,230,238,1); }
+.profile-fields { display: flex; flex-direction: column; gap: 16px; }
+.profile-field-row { display: flex; flex-direction: row; gap: 12px; }
+.profile-field-group { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.profile-field-label {
+  font-size: 11px; font-family: "Plus Jakarta Sans-SemiBold";
+  letter-spacing: 1px; color: rgba(138,143,158,1);
+}
+.profile-input {
+  width: 100%; height: 40px; border-radius: 8px;
+  border: 1px solid rgba(226,230,238,1);
+  padding: 0 12px; font-size: 13px;
+  font-family: "Plus Jakarta Sans-Regular"; color: rgba(30,30,30,1);
+  outline: none; background: rgba(248,249,251,1);
+  transition: border-color 0.15s;
+}
+.profile-input:focus { border-color: var(--accent); background: white; }
+.profile-plan-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(248,249,251,1); border-radius: 10px;
+  border: 1px solid rgba(226,230,238,1); padding: 14px 16px;
+}
+.profile-plan-left { display: flex; flex-direction: column; gap: 3px; }
+.profile-plan-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 5px;
+  background: var(--accent-light); font-size: 10px;
+  font-family: "Plus Jakarta Sans-SemiBold"; letter-spacing: 0.8px;
+  color: var(--accent); width: fit-content;
+}
+.profile-plan-desc {
+  font-size: 12px; font-family: "Plus Jakarta Sans-Regular";
+  color: rgba(138,143,158,1); margin-top: 2px;
+}
+.btn-upgrade {
+  height: 32px; padding: 0 14px; border-radius: 8px; border: none;
+  background: var(--accent); color: white; cursor: pointer;
+  font-size: 12px; font-family: "Plus Jakarta Sans-SemiBold";
+  transition: opacity 0.15s; flex-shrink: 0;
+}
+.btn-upgrade:hover { opacity: 0.88; }
+.profile-footer {
+  padding: 16px 24px; border-top: 1px solid rgba(226,230,238,1);
+  display: flex; justify-content: flex-end; gap: 10px;
+}
+.btn-profile-cancel {
+  height: 38px; padding: 0 20px; border-radius: 8px; cursor: pointer;
+  border: 1px solid rgba(226,230,238,1); background: transparent;
+  font-size: 13px; font-family: "Plus Jakarta Sans-SemiBold"; color: rgba(138,143,158,1);
+}
+.btn-profile-save {
+  height: 38px; padding: 0 24px; border-radius: 8px; border: none; cursor: pointer;
+  background: var(--accent); color: white;
+  font-size: 13px; font-family: "Plus Jakarta Sans-SemiBold"; transition: opacity 0.15s;
+}
+.btn-profile-save:hover { opacity: 0.9; }
+
 /* Expand modal */
 #expand-modal {
   display: none; position: fixed; inset: 0;
@@ -486,7 +583,7 @@ html, body { width: 100%; height: 100%; background: white; }
             </div>
             <div class="Pixso-frame-2_21"></div>
             <button class="btn-lang" id="lang-btn">En</button>
-            <div class="Pixso-frame-2_27">
+            <div class="Pixso-frame-2_27" id="profile-btn" style="cursor:pointer;">
               <div class="frame-content-2_27">
                 <div class="Pixso-frame-2_28">
                   <p class="Pixso-paragraph-2_29">AJ</p>
@@ -692,6 +789,51 @@ html, body { width: 100%; height: 100%; background: white; }
       <span id="input-expand-char-counter"></span>
       <button class="btn-expand-cancel" id="input-expand-cancel">Cancel</button>
       <button class="btn-expand-save" id="input-expand-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Profile modal -->
+<div id="profile-modal">
+  <div class="profile-inner">
+    <div class="profile-header">
+      <span class="profile-header-title">PROFILE</span>
+      <button class="expand-close" id="profile-close">✕</button>
+    </div>
+    <div class="profile-body">
+      <div class="profile-avatar-section">
+        <div class="profile-avatar-lg"><span>AJ</span></div>
+        <button class="btn-change-photo">Change Photo</button>
+      </div>
+      <div class="profile-divider"></div>
+      <div class="profile-fields">
+        <div class="profile-field-row">
+          <div class="profile-field-group">
+            <label class="profile-field-label">FIRST NAME</label>
+            <input class="profile-input" type="text" placeholder="Alex">
+          </div>
+          <div class="profile-field-group">
+            <label class="profile-field-label">LAST NAME</label>
+            <input class="profile-input" type="text" placeholder="Johnson">
+          </div>
+        </div>
+        <div class="profile-field-group">
+          <label class="profile-field-label">EMAIL</label>
+          <input class="profile-input" type="email" placeholder="alex.johnson@email.com">
+        </div>
+      </div>
+      <div class="profile-divider"></div>
+      <div class="profile-plan-row">
+        <div class="profile-plan-left">
+          <span class="profile-plan-badge">FREE PLAN</span>
+          <span class="profile-plan-desc">5 AI generations per month</span>
+        </div>
+        <button class="btn-upgrade">Upgrade →</button>
+      </div>
+    </div>
+    <div class="profile-footer">
+      <button class="btn-profile-cancel" id="profile-cancel">Cancel</button>
+      <button class="btn-profile-save" id="profile-save">Save Changes</button>
     </div>
   </div>
 </div>
