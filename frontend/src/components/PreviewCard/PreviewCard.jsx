@@ -1,11 +1,13 @@
 import { useState } from 'react'
+import { useLang } from '../../LangContext'
 import { ResumeRenderer } from '../ResumeRenderer/ResumeRenderer'
 import styles from './PreviewCard.module.css'
 
 const TEMPLATES = ['default', 'modern', 'corporate']
 
 export function PreviewCard({ result, isLoading, template, onTemplateChange, onExpand, onDownloadPdf, onCopyText }) {
-  const [copyLabel, setCopyLabel] = useState('Copy Text')
+  const t = useLang()
+  const [copyLabel, setCopyLabel] = useState(null)
 
   const showSkeleton = !result && !isLoading
   const showLoading = isLoading
@@ -13,14 +15,14 @@ export function PreviewCard({ result, isLoading, template, onTemplateChange, onE
 
   async function handleCopy() {
     await onCopyText()
-    setCopyLabel('Copied!')
-    setTimeout(() => setCopyLabel('Copy Text'), 2000)
+    setCopyLabel(t.preview.copied)
+    setTimeout(() => setCopyLabel(null), 2000)
   }
 
   return (
     <div className={styles.card}>
       <div className={styles.header}>
-        <span className="section-label">PREVIEW</span>
+        <span className="section-label">{t.preview.title}</span>
         <div className={styles.headerRight}>
           <button className="icon-btn" onClick={onExpand} disabled={!result}>
             <img src="/image/maximize2.png" alt="" />
@@ -33,7 +35,7 @@ export function PreviewCard({ result, isLoading, template, onTemplateChange, onE
 
       <div className={styles.previewArea}>
         {showSkeleton && <SkeletonPaper />}
-        {showLoading && <LoadingState />}
+        {showLoading && <LoadingState label={t.preview.generating} />}
         {showResult && (
           <ResumeRenderer text={result} template={template} className={styles.previewResult} />
         )}
@@ -41,15 +43,15 @@ export function PreviewCard({ result, isLoading, template, onTemplateChange, onE
 
       <div className={styles.footer}>
         <div className={styles.templateRow}>
-          <span className={styles.templateLabel}>TEMPLATE</span>
+          <span className={styles.templateLabel}>{t.preview.template}</span>
           <div className={styles.templateSelector}>
-            {TEMPLATES.map(t => (
+            {TEMPLATES.map(tpl => (
               <button
-                key={t}
-                className={`btn-tpl${template === t ? ' active' : ''}`}
-                onClick={() => onTemplateChange(t)}
+                key={tpl}
+                className={`btn-tpl${template === tpl ? ' active' : ''}`}
+                onClick={() => onTemplateChange(tpl)}
               >
-                {t.charAt(0).toUpperCase() + t.slice(1)}
+                {tpl.charAt(0).toUpperCase() + tpl.slice(1)}
               </button>
             ))}
           </div>
@@ -57,11 +59,11 @@ export function PreviewCard({ result, isLoading, template, onTemplateChange, onE
         <div className={styles.footerActions}>
           <button className="btn-download" disabled={!result} onClick={onDownloadPdf}>
             <img src="/image/download.png" alt="" />
-            <span>Download PDF</span>
+            <span>{t.preview.download}</span>
           </button>
           <button className="btn-copy" disabled={!result} onClick={handleCopy}>
             <img src="/image/Vector23.png" alt="" />
-            <span>{copyLabel}</span>
+            <span>{copyLabel ?? t.preview.copy}</span>
           </button>
         </div>
       </div>
@@ -94,11 +96,11 @@ function SkeletonPaper() {
   )
 }
 
-function LoadingState() {
+function LoadingState({ label }) {
   return (
     <div className={styles.loadingState}>
       <div className={styles.spinnerRing}></div>
-      <span>Generating resume...</span>
+      <span>{label}</span>
     </div>
   )
 }

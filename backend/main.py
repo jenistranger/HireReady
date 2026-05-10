@@ -2,14 +2,18 @@ import os
 import io
 import re
 import html as html_lib
-from fastapi import FastAPI, HTTPException, UploadFile, File
+import logging
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 import httpx
 from dotenv import load_dotenv
 from fpdf import FPDF
 from pypdf import PdfReader
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 try:
     from weasyprint import HTML as WeasyHTML
@@ -18,6 +22,12 @@ except ImportError:
     WEASYPRINT_AVAILABLE = False
 
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s — %(message)s",
+)
+logger = logging.getLogger("resume_tailor")
 
 OPENROUTER_API_KEY = os.getenv("openrouter_api_key")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -40,33 +50,7 @@ SYSTEM_PROMPT = """Ты — профессиональный HR-консульт
 - Добавлять вводные фразы типа «Вот переработанное резюме:» — сразу начинай с имени или первой строки резюме.
 - Придумывать данные, которых нет в оригинале."""
 
-app = FastAPI(title="Resume Tailor")
-
-if os.getenv("DEV_MODE") == "1":
-    from fastapi.middleware.cors import CORSMiddleware
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["http://localhost:5173"],
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-
-class TailorRequest(BaseModel):
-    resume: str
-    job_description: str
-
-
-class TailorResponse(BaseModel):
-    tailored_resume: str
-
-
-class PdfRequest(BaseModel):
-    text: str
-    template: str = "default"
-
-
-# ── WeasyPrint templates ───────────────────────────────────────────
+# ── CSS templates ──────────────────────────────────────────────────
 
 _MODERN_CSS = """
 @page { size: A4; margin: 0; }
@@ -172,7 +156,6 @@ def build_pdf_weasyprint(text: str, template: str) -> bytes:
 def build_pdf(text: str) -> bytes:
     lines = text.split("\n")
 
-    # Parse header block (everything before first blank line)
     header_lines, i = [], 0
     while i < len(lines) and lines[i].strip():
         header_lines.append(lines[i].strip())
@@ -186,7 +169,7 @@ def build_pdf(text: str) -> bytes:
     WHITE = (255, 255, 255)
     INK = (30, 30, 30)
     GRAY = (100, 100, 100)
-    LH = 5.5   # base line height mm
+    LH = 5.5
 
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=18)
@@ -196,23 +179,18 @@ def build_pdf(text: str) -> bytes:
     pdf.add_font("DV", "",  FONT_DIR + "DejaVuSans.ttf")
     pdf.add_font("DV", "B", FONT_DIR + "DejaVuSans-Bold.ttf")
 
-    # ── Header background ──────────────────────────────────────
     header_h = 16 + len(subtitles) * 7 + 14
     pdf.set_fill_color(*DARK)
     pdf.rect(0, 0, 210, header_h, "F")
 
-    # Left accent stripe
-    pdf.set_fill_color(255, 255, 255)
     pdf.set_fill_color(80, 130, 180)
     pdf.rect(0, 0, 5, header_h, "F")
 
-    # Name
     pdf.set_text_color(*WHITE)
     pdf.set_font("DV", "B", 21)
     pdf.set_xy(14, 13)
     pdf.cell(0, 9, name)
 
-    # Subtitle lines
     pdf.set_font("DV", "", 11)
     pdf.set_text_color(190, 210, 235)
     y = 25
@@ -221,7 +199,6 @@ def build_pdf(text: str) -> bytes:
         pdf.cell(0, 6, sub)
         y += 7
 
-    # ── Body ───────────────────────────────────────────────────
     pdf.set_y(header_h + 8)
     pdf.set_text_color(*INK)
 
@@ -239,7 +216,6 @@ def build_pdf(text: str) -> bytes:
             pdf.set_text_color(*DARK)
             pdf.set_x(14)
             pdf.cell(0, 5, s[:-1].upper(), new_x="LMARGIN", new_y="NEXT")
-            # Rule
             y_rule = pdf.get_y()
             pdf.set_draw_color(*DARK)
             pdf.set_line_width(0.25)
@@ -251,11 +227,9 @@ def build_pdf(text: str) -> bytes:
             content = s[2:].strip()
             pdf.set_font("DV", "", 10.5)
             y0 = pdf.get_y()
-            # Bullet glyph
             pdf.set_text_color(80, 130, 180)
             pdf.set_xy(14, y0)
             pdf.cell(7, LH, "•")
-            # Content (may wrap)
             pdf.set_text_color(*INK)
             pdf.set_xy(21, y0)
             pdf.multi_cell(175, LH, content)
@@ -271,22 +245,97 @@ def build_pdf(text: str) -> bytes:
     return bytes(pdf.output())
 
 
+# ── App setup ──────────────────────────────────────────────────────
+
+limiter = Limiter(key_func=get_remote_address, default_limits=[])
+
+app = FastAPI(title="Resume Tailor")
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
+ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
+if os.getenv("DEV_MODE") == "1":
+    from fastapi.middleware.cors import CORSMiddleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=ALLOWED_ORIGINS,
+        allow_methods=["POST", "GET", "OPTIONS"],
+        allow_headers=["Content-Type"],
+    )
+
+
+@app.on_event("startup")
+async def startup_check():
+    if not OPENROUTER_API_KEY:
+        logger.error(
+            "OPENROUTER_API_KEY is not set. "
+            "Add openrouter_api_key=... to your .env file and restart."
+        )
+    else:
+        logger.info("Resume Tailor started. Model: %s", MODEL)
+
+
+# ── Models ─────────────────────────────────────────────────────────
+
+class TailorRequest(BaseModel):
+    resume: str
+    job_description: str
+
+    @field_validator("resume")
+    @classmethod
+    def resume_size(cls, v: str) -> str:
+        if len(v.encode()) > 15_000:
+            raise ValueError("Резюме слишком большое (максимум 15 KB)")
+        return v
+
+    @field_validator("job_description")
+    @classmethod
+    def job_size(cls, v: str) -> str:
+        if len(v.encode()) > 25_000:
+            raise ValueError("Описание вакансии слишком большое (максимум 25 KB)")
+        return v
+
+
+class TailorResponse(BaseModel):
+    tailored_resume: str
+
+
+class PdfRequest(BaseModel):
+    text: str
+    template: str = "default"
+
+
+class UrlRequest(BaseModel):
+    url: str
+
+
+# ── Endpoints ──────────────────────────────────────────────────────
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "model": MODEL, "api_key_set": bool(OPENROUTER_API_KEY)}
+
+
 @app.post("/api/tailor", response_model=TailorResponse)
-async def tailor_resume(request: TailorRequest):
+@limiter.limit("5/minute")
+async def tailor_resume(request: Request, body: TailorRequest):
     if not OPENROUTER_API_KEY:
         raise HTTPException(status_code=500, detail="API ключ не настроен")
-    if not request.resume.strip():
+    if not body.resume.strip():
         raise HTTPException(status_code=400, detail="Резюме не может быть пустым")
-    if not request.job_description.strip():
+    if not body.job_description.strip():
         raise HTTPException(status_code=400, detail="Описание вакансии не может быть пустым")
 
     user_message = f"""Переработай резюме под данную вакансию.
 
 РЕЗЮМЕ КАНДИДАТА:
-{request.resume}
+{body.resume}
 
 ОПИСАНИЕ ВАКАНСИИ:
-{request.job_description}"""
+{body.job_description}"""
 
     payload = {
         "model": MODEL,
@@ -321,6 +370,11 @@ async def tailor_resume(request: TailorRequest):
     except (KeyError, IndexError):
         raise HTTPException(status_code=502, detail="Некорректный ответ от AI")
 
+    logger.info(
+        "Tailor done. Input: %d chars, output: %d chars",
+        len(body.resume) + len(body.job_description),
+        len(tailored),
+    )
     return TailorResponse(tailored_resume=tailored)
 
 
@@ -335,16 +389,13 @@ async def extract_pdf(file: UploadFile = File(...)):
     return {"text": text}
 
 
-class UrlRequest(BaseModel):
-    url: str
-
-
 @app.post("/api/fetch-url")
-async def fetch_url(request: UrlRequest):
+@limiter.limit("10/minute")
+async def fetch_url(request: Request, body: UrlRequest):
     try:
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             resp = await client.get(
-                request.url,
+                body.url,
                 headers={"User-Agent": "Mozilla/5.0 (compatible; ResumeTailor/1.0)"},
             )
             resp.raise_for_status()
@@ -362,16 +413,17 @@ async def fetch_url(request: UrlRequest):
 
 
 @app.post("/api/pdf")
-async def export_pdf(request: PdfRequest):
-    if not request.text.strip():
+@limiter.limit("20/minute")
+async def export_pdf(request: Request, body: PdfRequest):
+    if not body.text.strip():
         raise HTTPException(status_code=400, detail="Текст пустой")
     try:
-        if request.template in ("modern", "corporate"):
+        if body.template in ("modern", "corporate"):
             if not WEASYPRINT_AVAILABLE:
                 raise HTTPException(status_code=501, detail="WeasyPrint не установлен")
-            pdf_bytes = build_pdf_weasyprint(request.text, request.template)
+            pdf_bytes = build_pdf_weasyprint(body.text, body.template)
         else:
-            pdf_bytes = build_pdf(request.text)
+            pdf_bytes = build_pdf(body.text)
     except HTTPException:
         raise
     except Exception as e:

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { useLang } from '../../LangContext'
 import styles from './LinkModal.module.css'
 
 export function LinkModal({ isOpen, onClose, onFetch, isFetching }) {
+  const t = useLang()
   const [url, setUrl] = useState('')
 
   useEffect(() => {
@@ -25,7 +27,7 @@ export function LinkModal({ isOpen, onClose, onFetch, isFetching }) {
   return (
     <div className={styles.overlay} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className={styles.modal}>
-        <h3 className={styles.title}>Paste job posting URL</h3>
+        <h3 className={styles.title}>{t.link.title}</h3>
         <input
           type="url"
           className={styles.input}
@@ -36,9 +38,9 @@ export function LinkModal({ isOpen, onClose, onFetch, isFetching }) {
           autoFocus
         />
         <div className={styles.footer}>
-          <button className={styles.cancelBtn} onClick={onClose}>Cancel</button>
+          <button className={styles.cancelBtn} onClick={onClose}>{t.link.cancel}</button>
           <button className={styles.fetchBtn} onClick={handleFetch} disabled={isFetching}>
-            {isFetching ? 'Fetching...' : 'Fetch'}
+            {isFetching ? t.link.fetching : t.link.fetch}
           </button>
         </div>
       </div>

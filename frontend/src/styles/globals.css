@@ -116,7 +116,12 @@ html, body { width: 100%; height: 100%; background: white; }
   height: 28px; padding: 0 11px; border-radius: 14px; margin-right: 4px;
   border: 1px solid rgba(226,230,238,1); background: transparent;
   font-size: 12px; font-family: "Plus Jakarta Sans-SemiBold";
-  color: rgba(138,143,158,1); cursor: default; flex-shrink: 0;
+  color: rgba(138,143,158,1); cursor: pointer; flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.btn-lang:hover {
+  border-color: rgba(59,111,232,1); color: rgba(59,111,232,1);
+  background: rgba(59,111,232,0.05);
 }
 
 /* Icon buttons */

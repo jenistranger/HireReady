@@ -1,6 +1,10 @@
+import { useLang } from '../../LangContext'
 import styles from './Navbar.module.css'
 
-export function Navbar({ onProfileOpen }) {
+export function Navbar({ onProfileOpen, lang, onLangToggle }) {
+  const t = useLang()
+  const langLabel = lang === 'ru' ? '🇬🇧 EN' : '🇷🇺 RU'
+
   return (
     <div className={styles.wrapper}>
       <div className={styles.navbar}>
@@ -10,12 +14,12 @@ export function Navbar({ onProfileOpen }) {
             <div className={styles.logoBar}></div>
           </div>
           <div className={styles.spacer}></div>
-          <button className="btn-lang">En</button>
+          <button className="btn-lang" onClick={onLangToggle}>{langLabel}</button>
           <button className={styles.profileBtn} onClick={onProfileOpen}>
             <div className={styles.avatarCircle}>
               <span className={styles.avatarInitials}>AJ</span>
             </div>
-            <span className={styles.profileLabel}>Profile</span>
+            <span className={styles.profileLabel}>{t.navbar.profile}</span>
           </button>
         </div>
       </div>
