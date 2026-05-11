@@ -26,3 +26,40 @@
   border-bottom-color: rgba(59, 111, 232, 1);
   color: rgba(59, 111, 232, 1);
 }
+
+.improveBtn {
+  margin-top: 10px;
+  padding: 9px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, rgba(236, 72, 153, 0.08) 100%);
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  color: rgba(124, 58, 237, 1);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: "Plus Jakarta Sans-SemiBold", sans-serif;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.05s;
+}
+
+.improveBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.14) 0%, rgba(236, 72, 153, 0.14) 100%);
+  border-color: rgba(124, 58, 237, 0.5);
+}
+
+.improveBtn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.improveBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.improveSparkle {
+  font-size: 14px;
+  filter: saturate(1.2);
+}

@@ -1,0 +1,134 @@
+<# Awesome-CV style: indigo accent, fontawesome contact icons, clean section rules. #>
+\documentclass[a4paper,10.5pt]{article}
+
+\usepackage{fontspec}
+\usepackage[a4paper,top=18mm,bottom=18mm,left=20mm,right=20mm]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fontawesome5}
+\usepackage[hidelinks]{hyperref}
+\usepackage{etoolbox}
+\usepackage{ragged2e}
+
+\setmainfont{DejaVu Sans}[Scale=0.95]
+\newfontfamily\headingfont{DejaVu Sans}[Scale=1.0]
+
+\definecolor{accent}{HTML}{2D5BFF}
+\definecolor{ink}{HTML}{1A1A1A}
+\definecolor{muted}{HTML}{6B6B6B}
+\definecolor{rule}{HTML}{D6DBE3}
+
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\linespread{1.18}
+
+\titleformat{\section}
+  {\headingfont\bfseries\large\color{accent}}
+  {}{0pt}{}[\vspace{-2pt}\textcolor{rule}{\rule{\linewidth}{0.6pt}}]
+\titlespacing*{\section}{0pt}{12pt}{6pt}
+
+\setlist[itemize]{leftmargin=14pt,itemsep=1.5pt,topsep=2pt,parsep=0pt,label={\textcolor{accent}{\small\faAngleRight}}}
+
+\newcommand{\rolerow}[4]{%
+  \noindent{\bfseries\color{ink}#1}%
+  \ifstrempty{#2}{}{ \textcolor{muted}{\textbullet} \textcolor{ink}{#2}}%
+  \hfill{\color{muted}\small #3}\par
+  \ifstrempty{#4}{}{\textcolor{muted}{\small\faMapMarker*~#4}\par}%
+  \vspace{2pt}%
+}
+
+\begin{document}
+
+<% if name %>
+\begingroup
+\centering
+{\headingfont\bfseries\fontsize{26}{30}\selectfont\color{ink}<< name | tex >>}\par
+<% if headline %>\vspace{4pt}{\large\color{accent}<< headline | tex >>}\par<% endif %>
+<% if emails or phones or links or other_contacts %>
+\vspace{6pt}
+{\small\color{muted}%
+<% set parts = [] %>
+<% for e in emails %><% set _ = parts.append('\\faEnvelope~~' + (e | tex)) %><% endfor %>
+<% for p in phones %><% set _ = parts.append('\\faPhone~~' + (p | tex)) %><% endfor %>
+<% for l in links %><% set _ = parts.append('\\faGlobe~~' + (l | tex)) %><% endfor %>
+<% for c in other_contacts %><% set _ = parts.append('\\faMapMarker*~~' + (c | tex)) %><% endfor %>
+<< parts | join('  \\quad ') >>%
+}\par
+<% endif %>
+\endgroup
+\vspace{8pt}
+\textcolor{rule}{\rule{\linewidth}{0.8pt}}
+<% endif %>
+
+<% if summary %>
+\section*{Summary}
+{\color{ink}<< summary | tex >>}
+<% endif %>
+
+<% if experience %>
+\section*{Experience}
+<% for e in experience %>
+\rolerow{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.period | tex >>}{<< e.location | tex >>}
+<% if e.description %>{\small\color{muted}<< e.description | tex >>}\par<% endif %>
+<% if e.bullets %>
+\begin{itemize}
+<% for b in e.bullets %>\item << b | tex >>
+<% endfor %>
+\end{itemize}
+<% endif %>
+\vspace{4pt}
+<% endfor %>
+<% endif %>
+
+<% if projects %>
+\section*{Projects}
+<% for e in projects %>
+\rolerow{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.period | tex >>}{<< e.location | tex >>}
+<% if e.description %>{\small\color{muted}<< e.description | tex >>}\par<% endif %>
+<% if e.bullets %>
+\begin{itemize}
+<% for b in e.bullets %>\item << b | tex >>
+<% endfor %>
+\end{itemize}
+<% endif %>
+\vspace{4pt}
+<% endfor %>
+<% endif %>
+
+<% if education %>
+\section*{Education}
+<% for e in education %>
+\rolerow{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.period | tex >>}{<< e.location | tex >>}
+<% endfor %>
+<% endif %>
+
+<% if skills %>
+\section*{Skills}
+<% for s in skills %>
+<% if s.label %>\textbf{\color{ink}<< s.label | tex >>:}\quad <% endif %>{\color{ink}<< s.value | tex >>}\par\vspace{2pt}
+<% endfor %>
+<% endif %>
+
+<% if languages %>
+\section*{Languages}
+{\color{ink}<< languages | tex >>}
+<% endif %>
+
+<% for sec in other_sections %>
+\section*{<< sec.title | tex >>}
+<% if sec.content %>{\color{ink}<< sec.content | tex >>}<% endif %>
+<% if sec.entries %>
+<% for e in sec.entries %>
+\rolerow{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.period | tex >>}{<< e.location | tex >>}
+<% if e.bullets %>
+\begin{itemize}
+<% for b in e.bullets %>\item << b | tex >>
+<% endfor %>
+\end{itemize}
+<% endif %>
+<% endfor %>
+<% endif %>
+<% endfor %>
+
+\end{document}

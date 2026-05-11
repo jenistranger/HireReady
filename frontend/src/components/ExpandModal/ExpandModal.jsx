@@ -1,9 +1,34 @@
+import { useEffect, useRef, useState } from 'react'
 import { useLang } from '../../LangContext'
-import { ResumeRenderer } from '../ResumeRenderer/ResumeRenderer'
+import * as api from '../../api'
 import styles from './ExpandModal.module.css'
 
 export function ExpandModal({ isOpen, onClose, result, template }) {
   const t = useLang()
+  const [url, setUrl] = useState(null)
+  const [error, setError] = useState(null)
+  const lastUrl = useRef(null)
+
+  useEffect(() => {
+    if (!isOpen || !result) return
+    let cancelled = false
+    setError(null)
+    api.previewPdf(result, template).then(blob => {
+      if (cancelled) return
+      const u = URL.createObjectURL(blob)
+      if (lastUrl.current) URL.revokeObjectURL(lastUrl.current)
+      lastUrl.current = u
+      setUrl(u)
+    }).catch(e => {
+      if (!cancelled) setError(e.message || 'PDF render failed')
+    })
+    return () => { cancelled = true }
+  }, [isOpen, result, template])
+
+  useEffect(() => () => {
+    if (lastUrl.current) URL.revokeObjectURL(lastUrl.current)
+  }, [])
+
   if (!isOpen) return null
 
   return (
@@ -13,9 +38,11 @@ export function ExpandModal({ isOpen, onClose, result, template }) {
           <span>{t.expand.resumeTitle}</span>
           <button className="expand-close" onClick={onClose}>✕</button>
         </div>
-        {result && (
-          <ResumeRenderer text={result} template={template} className={styles.content} />
+        {error && <div className={styles.error}>{error}</div>}
+        {url && !error && (
+          <iframe className={styles.frame} src={`${url}#toolbar=0&navpanes=0`} title="resume" />
         )}
+        {!url && !error && <div className={styles.loading}>{t.preview.rendering}</div>}
       </div>
     </div>
   )

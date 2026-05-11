@@ -1,0 +1,120 @@
+<# Vivid: gradient header band, rounded skill pills, playful for design/marketing. #>
+\documentclass[a4paper,10pt]{article}
+
+\usepackage{fontspec}
+\usepackage[a4paper,top=0pt,bottom=18mm,left=20mm,right=20mm]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fontawesome5}
+\usepackage[hidelinks]{hyperref}
+\usepackage{etoolbox}
+\usepackage{tikz}
+\usepackage{tcolorbox}
+
+\tcbuselibrary{skins}
+
+\setmainfont{DejaVu Sans}[Scale=0.96]
+\newfontfamily\heavy{DejaVu Sans}[Scale=1.0]
+
+\definecolor{purple}{HTML}{7C3AED}
+\definecolor{pink}{HTML}{EC4899}
+\definecolor{ink}{HTML}{1F1235}
+\definecolor{muted}{HTML}{6B5B95}
+\definecolor{pill}{HTML}{F5E9FF}
+
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\linespread{1.22}
+
+\titleformat{\section}
+  {\heavy\bfseries\large\color{purple}}
+  {}{0pt}{}[\vspace{-2pt}\textcolor{pink}{\rule{20pt}{1.4pt}}]
+\titlespacing*{\section}{0pt}{14pt}{6pt}
+
+\setlist[itemize]{leftmargin=14pt,itemsep=1.5pt,topsep=2pt,parsep=0pt,label={\textcolor{pink}{\small\faGem}}}
+
+\newcommand{\pill}[1]{\tcbox[on line,boxrule=0.3pt,boxsep=0pt,arc=4pt,top=2pt,bottom=2pt,left=6pt,right=6pt,colback=pill,colframe=purple!40,coltext=purple]{\small\bfseries #1}}
+
+\begin{document}
+
+% Gradient header
+\noindent\begin{tikzpicture}[remember picture, overlay]
+\shade[left color=purple, right color=pink] (current page.north west) rectangle ([yshift=-48mm]current page.north east);
+\end{tikzpicture}
+\vspace*{10mm}
+\begin{minipage}[t]{\linewidth}
+\color{white}
+<% if name %>{\heavy\bfseries\fontsize{30}{32}\selectfont\color{white} << name | tex >>}\par<% endif %>
+<% if headline %>\vspace{3pt}{\large\color{white} << headline | tex >>}\par<% endif %>
+\vspace{8pt}
+<% if emails or phones or links or other_contacts %>
+{\small%
+<% set parts = [] %>
+<% for c in other_contacts %><% set _ = parts.append('\\faMapMarker*~~' + (c | tex)) %><% endfor %>
+<% for p in phones %><% set _ = parts.append('\\faPhone~~' + (p | tex)) %><% endfor %>
+<% for e in emails %><% set _ = parts.append('\\faEnvelope~~' + (e | tex)) %><% endfor %>
+<% for l in links %><% set _ = parts.append('\\faGlobe~~' + (l | tex)) %><% endfor %>
+<< parts | join('  \\quad ') >>%
+}
+<% endif %>
+\end{minipage}
+\vspace{18mm}
+
+<% if summary %>
+\section*{About}
+{\color{ink}<< summary | tex >>}
+<% endif %>
+
+<% if experience %>
+\section*{Experience}
+<% for e in experience %>
+{\heavy\bfseries\color{ink}<< e.title | tex >>}<% if e.subtitle %>\,{\color{pink}\textbullet}\,{\color{muted}<< e.subtitle | tex >>}<% endif %>\hfill{\small\color{purple}\bfseries << e.period | tex >>}\par
+<% if e.location %>{\small\color{muted}\faMapMarker*~<< e.location | tex >>}\par<% endif %>
+<% if e.description %>{\small\color{ink}<< e.description | tex >>}\par<% endif %>
+<% if e.bullets %>
+\begin{itemize}
+<% for b in e.bullets %>\item << b | tex >>
+<% endfor %>
+\end{itemize}
+<% endif %>
+\vspace{4pt}
+<% endfor %>
+<% endif %>
+
+<% if projects %>
+\section*{Projects}
+<% for e in projects %>
+{\bfseries\color{ink}<< e.title | tex >>}<% if e.subtitle %>\,{\color{muted}<< e.subtitle | tex >>}<% endif %>\hfill{\small\color{purple}<< e.period | tex >>}\par
+<% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item << b | tex >><% endfor %>\end{itemize}<% endif %>
+\vspace{4pt}
+<% endfor %>
+<% endif %>
+
+<% if skills %>
+\section*{Skills}
+<% for s in skills %>
+<% if s.label %>{\color{purple}\bfseries\small\MakeUppercase{<< s.label | tex >>}}\par\vspace{3pt}<% endif %>
+<% for v in (s.value or '').split(',') %><% if v.strip() %>\pill{<< v.strip() | tex >>}\enspace<% endif %><% endfor %>
+\par\vspace{6pt}
+<% endfor %>
+<% endif %>
+
+<% if education %>
+\section*{Education}
+<% for e in education %>
+{\bfseries\color{ink}<< e.title | tex >>}<% if e.subtitle %>, {\color{muted}<< e.subtitle | tex >>}<% endif %>\hfill{\small\color{purple}<< e.period | tex >>}\par
+<% endfor %>
+<% endif %>
+
+<% if languages %>
+\section*{Languages}
+{\color{ink}<< languages | tex >>}
+<% endif %>
+
+<% for sec in other_sections %>
+\section*{<< sec.title | tex >>}
+<% if sec.content %>{\color{ink}<< sec.content | tex >>}<% endif %>
+<% endfor %>
+
+\end{document}

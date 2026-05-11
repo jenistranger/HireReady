@@ -15,3 +15,6 @@ frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
 frontend/pnpm-debug.log*
+backend/__pycache__/
+backend/latex/__pycache__/
+backend/tests/__pycache__/

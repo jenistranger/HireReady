@@ -120,8 +120,9 @@ export function App() {
   })
   const [jobText, setJobText] = useState('')
   const [result, setResult] = useState('')
-  const [template, setTemplate] = useState('default')
+  const [template, setTemplate] = useState('awesome')
   const [isLoading, setIsLoading] = useState(false)
+  const [isImproving, setIsImproving] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [error, setError] = useState(null)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -181,6 +182,27 @@ export function App() {
 
   // Update ref after every render so the keyboard handler always has latest version
   handleGenerateRef.current = handleGenerate
+
+  async function handleImprove() {
+    setError(null)
+    let resume
+    if (resumeMode === 'structured') {
+      resume = serializeStructuredData(structuredData)
+      if (!resume) { setError(t.errors.noStructured); return }
+    } else {
+      resume = resumeText.trim()
+      if (!resume) { setError(t.errors.noResume); return }
+    }
+    setIsImproving(true)
+    try {
+      const improved = await api.improveResume(resume)
+      setResult(improved)
+    } catch (e) {
+      setError(resolveError(e, t))
+    } finally {
+      setIsImproving(false)
+    }
+  }
 
   const resumeNonEmpty = resumeMode === 'structured'
     ? Boolean(serializeStructuredData(structuredData))
@@ -270,6 +292,9 @@ export function App() {
               onModeChange={setResumeMode}
               structuredData={structuredData}
               onStructuredChange={setStructuredData}
+              onImprove={handleImprove}
+              canImprove={resumeNonEmpty}
+              isImproving={isImproving}
             />
             <JobCard
               value={jobText}
@@ -278,7 +303,7 @@ export function App() {
               onExtractPdf={handleExtractPdf}
               onPasteLink={() => setLinkOpen(true)}
               onGenerate={handleGenerate}
-              isLoading={isLoading}
+              isLoading={isLoading || isImproving}
               elapsed={elapsed}
               canGenerate={canGenerate}
             />
@@ -289,6 +314,7 @@ export function App() {
           <div className={styles.rightCol}>
             <PreviewCard
               result={result}
+              onResultChange={setResult}
               isLoading={isLoading}
               template={template}
               onTemplateChange={setTemplate}

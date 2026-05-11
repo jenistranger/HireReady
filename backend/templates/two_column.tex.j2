@@ -1,0 +1,158 @@
+<# Two-column: dark sidebar (contacts, skills, education) + main (summary, experience). #>
+\documentclass[a4paper,10pt]{article}
+
+\usepackage{fontspec}
+\usepackage[a4paper,margin=0pt]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fontawesome5}
+\usepackage{paracol}
+\usepackage{ragged2e}
+\usepackage{etoolbox}
+\usepackage{tikz}
+\usepackage{eso-pic}
+\usepackage[hidelinks]{hyperref}
+
+\AddToShipoutPictureBG{%
+  \begin{tikzpicture}[remember picture, overlay]
+    \fill[sideBg] (current page.north west) rectangle ([xshift=0.36\paperwidth]current page.south west);
+  \end{tikzpicture}%
+}
+
+\setmainfont{DejaVu Sans}[Scale=0.95]
+
+\definecolor{sideBg}{HTML}{1F2D3D}
+\definecolor{sideText}{HTML}{F1F5F9}
+\definecolor{sideMuted}{HTML}{94A3B8}
+\definecolor{accent}{HTML}{F59E0B}
+\definecolor{ink}{HTML}{0F172A}
+\definecolor{muted}{HTML}{475569}
+
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\linespread{1.2}
+
+\columnratio{0.36}
+\setlength{\columnsep}{0pt}
+\setlength{\columnseprule}{0pt}
+
+\setlist[itemize]{leftmargin=12pt,itemsep=1.5pt,topsep=2pt,parsep=0pt,label={\textcolor{accent}{\small$\bullet$}}}
+
+\newcommand{\sideSection}[1]{\par\vspace{10pt}{\color{accent}\bfseries\MakeUppercase{#1}}\par\vspace{2pt}{\color{accent}\rule{0.6\linewidth}{0.6pt}}\par\vspace{4pt}}
+\newcommand{\mainSection}[1]{\par\vspace{12pt}{\bfseries\large\color{ink}\MakeUppercase{#1}}\par\vspace{1pt}{\color{accent}\rule{0.25\linewidth}{1.2pt}}\par\vspace{6pt}}
+
+\begin{document}
+
+\begin{paracol}{2}
+
+% ── Sidebar ──
+\color{sideText}
+\setlength{\leftskip}{14pt}\setlength{\rightskip}{14pt}
+\vspace{16pt}
+
+<% if name %>
+{\bfseries\fontsize{18}{20}\selectfont << name | tex >>}\par
+<% if headline %>\vspace{3pt}{\color{sideMuted}<< headline | tex >>}\par<% endif %>
+<% endif %>
+
+<% if emails or phones or links or other_contacts %>
+\sideSection{Contact}
+{\small\color{sideText}
+<% for c in other_contacts %>\faMapMarker*~~<< c | tex >>\par<% endfor %>
+<% for p in phones %>\faPhone~~<< p | tex >>\par<% endfor %>
+<% for e in emails %>\faEnvelope~~<< e | tex >>\par<% endfor %>
+<% for l in links %>\faGlobe~~<< l | tex >>\par<% endfor %>
+}
+<% endif %>
+
+<% if skills %>
+\sideSection{Skills}
+{\small
+<% for s in skills %>
+<% if s.label %>{\color{accent}\bfseries << s.label | tex >>}\par<% endif %>
+\color{sideText}<< s.value | tex >>\par\vspace{4pt}
+<% endfor %>
+}
+<% endif %>
+
+<% if education %>
+\sideSection{Education}
+{\small
+<% for e in education %>
+{\bfseries\color{sideText}<< e.title | tex >>}\par
+<% if e.subtitle %>{\color{sideMuted}<< e.subtitle | tex >>}\par<% endif %>
+<% if e.period %>{\color{sideMuted}<< e.period | tex >>}\par<% endif %>
+\vspace{4pt}
+<% endfor %>
+}
+<% endif %>
+
+<% if languages %>
+\sideSection{Languages}
+{\small\color{sideText}<< languages | tex >>}
+<% endif %>
+
+\vfill
+
+\switchcolumn
+
+% ── Main ──
+\color{ink}
+\setlength{\leftskip}{18pt}\setlength{\rightskip}{18pt}
+\vspace{16pt}
+
+<% if summary %>
+\mainSection{Profile}
+<< summary | tex >>
+<% endif %>
+
+<% if experience %>
+\mainSection{Experience}
+<% for e in experience %>
+{\bfseries\color{ink}<< e.title | tex >>}<% if e.subtitle %> \,{\color{accent}\textbullet}\, <% endif %>{\color{muted}<< e.subtitle | tex >>}\hfill{\color{muted}\small << e.period | tex >>}\par
+<% if e.location %>{\color{muted}\small\faMapMarker*~<< e.location | tex >>}\par<% endif %>
+<% if e.description %>{\small << e.description | tex >>}\par<% endif %>
+<% if e.bullets %>
+\begin{itemize}
+<% for b in e.bullets %>\item << b | tex >>
+<% endfor %>
+\end{itemize}
+<% endif %>
+\vspace{4pt}
+<% endfor %>
+<% endif %>
+
+<% if projects %>
+\mainSection{Projects}
+<% for e in projects %>
+{\bfseries\color{ink}<< e.title | tex >>}<% if e.subtitle %> \,{\color{accent}\textbullet}\, <% endif %>{\color{muted}<< e.subtitle | tex >>}\hfill{\color{muted}\small << e.period | tex >>}\par
+<% if e.bullets %>
+\begin{itemize}
+<% for b in e.bullets %>\item << b | tex >>
+<% endfor %>
+\end{itemize}
+<% endif %>
+\vspace{4pt}
+<% endfor %>
+<% endif %>
+
+<% for sec in other_sections %>
+\mainSection{<< sec.title | tex >>}
+<% if sec.content %><< sec.content | tex >><% endif %>
+<% if sec.entries %>
+<% for e in sec.entries %>
+{\bfseries<< e.title | tex >>}\hfill << e.period | tex >>\par
+<% if e.bullets %>
+\begin{itemize}
+<% for b in e.bullets %>\item << b | tex >>
+<% endfor %>
+\end{itemize}
+<% endif %>
+<% endfor %>
+<% endif %>
+<% endfor %>
+
+\end{paracol}
+
+\end{document}

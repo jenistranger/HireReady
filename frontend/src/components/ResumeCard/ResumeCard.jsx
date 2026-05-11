@@ -5,7 +5,19 @@ import styles from './ResumeCard.module.css'
 
 const MAX_LEN = 3000
 
-export function ResumeCard({ value, onChange, onExpand, onExtractPdf, mode, onModeChange, structuredData, onStructuredChange }) {
+export function ResumeCard({
+  value,
+  onChange,
+  onExpand,
+  onExtractPdf,
+  mode,
+  onModeChange,
+  structuredData,
+  onStructuredChange,
+  onImprove,
+  canImprove,
+  isImproving,
+}) {
   const t = useLang()
   const fileRef = useRef(null)
 
@@ -66,6 +78,17 @@ export function ResumeCard({ value, onChange, onExpand, onExtractPdf, mode, onMo
           </>
         ) : (
           <StructuredResumeForm data={structuredData} onChange={onStructuredChange} />
+        )}
+
+        {onImprove && (
+          <button
+            className={styles.improveBtn}
+            disabled={!canImprove || isImproving}
+            onClick={onImprove}
+          >
+            <span className={styles.improveSparkle}>✨</span>
+            <span>{isImproving ? t.improve?.running ?? 'Улучшаю…' : t.improve?.button ?? 'Улучшить резюме'}</span>
+          </button>
         )}
       </div>
     </div>

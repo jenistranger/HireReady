@@ -1,16 +1,86 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useLang } from '../../LangContext'
-import { ResumeRenderer } from '../ResumeRenderer/ResumeRenderer'
+import { EditPanel } from './EditPanel'
+import * as api from '../../api'
 import styles from './PreviewCard.module.css'
 
-const TEMPLATES = ['default', 'modern', 'corporate', 'minimal', 'technical', 'creative']
+const TEMPLATES = ['awesome', 'two_column', 'minimal', 'bold', 'executive', 'vivid']
+const TEMPLATE_LABELS = {
+  awesome: 'Awesome',
+  two_column: 'Two-Column',
+  minimal: 'Minimal',
+  bold: 'Bold',
+  executive: 'Executive',
+  vivid: 'Vivid',
+}
 
-export function PreviewCard({ result, isLoading, template, onTemplateChange, onExpand, onDownloadPdf, onCopyText }) {
+export function PreviewCard({
+  result,
+  onResultChange,
+  isLoading,
+  template,
+  onTemplateChange,
+  onExpand,
+  onDownloadPdf,
+  onCopyText,
+}) {
   const t = useLang()
   const [copyLabel, setCopyLabel] = useState(null)
+  const [pdfUrl, setPdfUrl] = useState(null)
+  const [pdfError, setPdfError] = useState(null)
+  const [refreshing, setRefreshing] = useState(false)
 
-  const showSkeleton = !result && !isLoading
-  const showLoading = isLoading
+  const abortRef = useRef(null)
+  const lastUrlRef = useRef(null)
+
+  // Debounced PDF refresh whenever result or template changes
+  useEffect(() => {
+    if (!result || !result.trim()) {
+      // Clean up any stale preview
+      if (lastUrlRef.current) {
+        URL.revokeObjectURL(lastUrlRef.current)
+        lastUrlRef.current = null
+      }
+      setPdfUrl(null)
+      setPdfError(null)
+      return
+    }
+    const handle = setTimeout(async () => {
+      // Cancel any in-flight request
+      if (abortRef.current) abortRef.current.abort()
+      const controller = new AbortController()
+      abortRef.current = controller
+      setRefreshing(true)
+      setPdfError(null)
+      try {
+        const blob = await api.previewPdf(result, template, { signal: controller.signal })
+        const url = URL.createObjectURL(blob)
+        if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current)
+        lastUrlRef.current = url
+        setPdfUrl(url)
+      } catch (e) {
+        if (e.name === 'AbortError') return
+        setPdfError(e.message || 'PDF render failed')
+      } finally {
+        if (abortRef.current === controller) {
+          setRefreshing(false)
+          abortRef.current = null
+        }
+      }
+    }, 800)
+    return () => clearTimeout(handle)
+  }, [result, template])
+
+  useEffect(() => {
+    // Cleanup on unmount
+    return () => {
+      if (abortRef.current) abortRef.current.abort()
+      if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current)
+    }
+  }, [])
+
+  const showEmpty = !result && !isLoading
+  const showAiLoading = isLoading
   const showResult = !!result && !isLoading
 
   async function handleCopy() {
@@ -33,11 +103,34 @@ export function PreviewCard({ result, isLoading, template, onTemplateChange, onE
         </div>
       </div>
 
-      <div className={styles.previewArea}>
-        {showSkeleton && <SkeletonPaper />}
-        {showLoading && <LoadingState label={t.preview.generating} />}
-        {showResult && (
-          <ResumeRenderer text={result} template={template} className={styles.previewResult} />
+      <div className={styles.previewBody}>
+        <div className={styles.previewArea}>
+          {showEmpty && <SkeletonPaper />}
+          {showAiLoading && <LoadingState label={t.preview.generating} />}
+          {showResult && pdfError && (
+            <div className={styles.errorState}>
+              <strong>{t.preview.previewError ?? 'Не удалось отобразить превью'}</strong>
+              <span>{pdfError}</span>
+            </div>
+          )}
+          {showResult && !pdfError && pdfUrl && (
+            <iframe
+              key={template}
+              className={styles.pdfFrame}
+              src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+              title="resume-preview"
+            />
+          )}
+          {showResult && !pdfError && !pdfUrl && (
+            <LoadingState label={t.preview.rendering ?? 'Рендерю PDF…'} />
+          )}
+          {showResult && refreshing && pdfUrl && (
+            <div className={styles.refreshBadge}>{t.preview.refreshing ?? 'Обновляю'}</div>
+          )}
+        </div>
+
+        {showResult && onResultChange && (
+          <EditPanel result={result} onChange={onResultChange} />
         )}
       </div>
 
@@ -51,7 +144,7 @@ export function PreviewCard({ result, isLoading, template, onTemplateChange, onE
                 className={`btn-tpl${template === tpl ? ' active' : ''}`}
                 onClick={() => onTemplateChange(tpl)}
               >
-                {tpl.charAt(0).toUpperCase() + tpl.slice(1)}
+                {TEMPLATE_LABELS[tpl] ?? tpl}
               </button>
             ))}
           </div>

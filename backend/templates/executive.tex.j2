@@ -1,0 +1,103 @@
+<# Executive: classical serif, centered header, navy + grey, thin hairlines, dense. #>
+\documentclass[a4paper,10.5pt]{article}
+
+\usepackage{fontspec}
+\usepackage[a4paper,top=20mm,bottom=20mm,left=22mm,right=22mm]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{etoolbox}
+
+\setmainfont{DejaVu Serif}[Scale=0.9]
+\newfontfamily\caps{DejaVu Sans}[Scale=0.8,LetterSpace=6]
+
+\definecolor{navy}{HTML}{1E3A5F}
+\definecolor{ink}{HTML}{1A1A1A}
+\definecolor{muted}{HTML}{6B6B6B}
+\definecolor{rule}{HTML}{C9C9C9}
+
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\linespread{1.25}
+
+\titleformat{\section}
+  {\caps\bfseries\small\color{navy}}
+  {}{0pt}{\MakeUppercase}[\vspace{-2pt}\textcolor{rule}{\rule{\linewidth}{0.4pt}}]
+\titlespacing*{\section}{0pt}{14pt}{5pt}
+
+\setlist[itemize]{leftmargin=12pt,itemsep=1.5pt,topsep=2pt,parsep=0pt,label={\color{navy}\textendash}}
+
+\begin{document}
+
+\begingroup
+\centering
+<% if name %>{\fontsize{22}{24}\selectfont\color{navy}<< name | tex >>}\par<% endif %>
+\vspace{3pt}
+<% if headline %>{\itshape\color{ink}<< headline | tex >>}\par<% endif %>
+\vspace{6pt}
+<% if contacts %>{\small\color{muted}<< contacts | map('tex') | join('  \\,\\textbullet\\,  ') >>}\par<% endif %>
+\vspace{6pt}
+\endgroup
+
+<% if summary %>
+\section*{Summary}
+{\color{ink}<< summary | tex >>}
+<% endif %>
+
+<% if experience %>
+\section*{Professional Experience}
+<% for e in experience %>
+{\bfseries\color{navy}<< e.title | tex >>}<% if e.subtitle %>, {\itshape\color{ink}<< e.subtitle | tex >>}<% endif %>\hfill{\caps\small\color{muted}<< e.period | tex >>}\par
+<% if e.location %>{\itshape\small\color{muted}<< e.location | tex >>}\par<% endif %>
+<% if e.description %>{\small\color{ink}<< e.description | tex >>}\par<% endif %>
+<% if e.bullets %>
+\begin{itemize}
+<% for b in e.bullets %>\item << b | tex >>
+<% endfor %>
+\end{itemize}
+<% endif %>
+\vspace{4pt}
+<% endfor %>
+<% endif %>
+
+<% if education %>
+\section*{Education}
+<% for e in education %>
+{\bfseries\color{navy}<< e.title | tex >>}<% if e.subtitle %>, {\itshape << e.subtitle | tex >>}<% endif %>\hfill{\caps\small\color{muted}<< e.period | tex >>}\par
+<% endfor %>
+<% endif %>
+
+<% if projects %>
+\section*{Projects}
+<% for e in projects %>
+{\bfseries\color{navy}<< e.title | tex >>}<% if e.subtitle %>, {\itshape << e.subtitle | tex >>}<% endif %>\hfill{\caps\small\color{muted}<< e.period | tex >>}\par
+<% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item << b | tex >><% endfor %>\end{itemize}<% endif %>
+\vspace{2pt}
+<% endfor %>
+<% endif %>
+
+<% if skills %>
+\section*{Core Competencies}
+<% for s in skills %>
+<% if s.label %>{\bfseries\color{navy}<< s.label | tex >>:}\quad <% endif %>{\color{ink}<< s.value | tex >>}\par\vspace{2pt}
+<% endfor %>
+<% endif %>
+
+<% if languages %>
+\section*{Languages}
+{\color{ink}<< languages | tex >>}
+<% endif %>
+
+<% for sec in other_sections %>
+\section*{<< sec.title | tex >>}
+<% if sec.content %>{\color{ink}<< sec.content | tex >>}<% endif %>
+<% if sec.entries %>
+<% for e in sec.entries %>
+{\bfseries<< e.title | tex >>}\hfill{\caps\small\color{muted}<< e.period | tex >>}\par
+<% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item << b | tex >><% endfor %>\end{itemize}<% endif %>
+<% endfor %>
+<% endif %>
+<% endfor %>
+
+\end{document}

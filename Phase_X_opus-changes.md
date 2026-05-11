@@ -1,247 +1,341 @@
-# Phase X — Качество резюме + 6 шаблонов (Opus changes)
+# Phase X — LaTeX-генерация, редактируемое PDF-превью, улучшайзер, 6 новых шаблонов
 
-Реализация плана `delegated-bubbling-beacon`: сильнее AI-промпт, structured-markdown формат, парсер, 6 шаблонов, расширенная структурированная форма, live preview + critical fixes.
-
----
-
-## 1. Backend — AI-промпт + structured-markdown формат
-
-**Файл:** `backend/main.py`
-
-- `SYSTEM_PROMPT` переписан под строгий structured-markdown:
-  - Header: Имя / Headline / контакты через `·`
-  - `## SUMMARY` — текстовая секция
-  - `## EXPERIENCE` с `### Должность · Компания` + период · локация + `* bullets`
-  - `## EDUCATION` — аналогично
-  - `## SKILLS` — `**Категория:** значения через запятую`
-  - Опциональные `## PROJECTS` / `## LANGUAGES`
-- Добавлены правила: ATS-ключевые слова в первых трёх секциях, action verbs, метрики из оригинала, длина ≤ A4, никаких ```...```-обёрток.
-- `MODEL = "google/gemini-2.0-flash-001"` (была сломанная `gemini-3.1-flash-lite`).
+Полный pivot рендера PDF: WeasyPrint (HTML/CSS) → tectonic (XeLaTeX) с шаблонами через Jinja2. Превью на фронте стало реальным PDF в `<iframe>` с дебаунсом, рядом — sidebar редактирования по блокам (Header/Summary/каждый Experience/Education/Skill), клик на блок открывает inline-форму, сохранение перерисовывает PDF. Добавлена кнопка «✨ Улучшить резюме» — отдельный AI-режим без вакансии. Все 6 старых HTML-шаблонов заменены на 6 новых LaTeX-дизайнов с поддержкой кириллицы.
 
 ---
 
-## 2. Backend — парсер `parse_resume`
+## 1. Backend — LaTeX-инфраструктура
 
-**Файл:** `backend/main.py`
+### 1.1 `backend/latex/` (новый пакет)
 
-Один парсер обслуживает все 6 шаблонов. Возвращает:
+**`backend/latex/escape.py`** — экранирование пользовательского текста под LaTeX:
+- Заменяет `& % $ # _ { } ~ ^ \` на безопасные TeX-эквиваленты (`\&`, `\%`, …, `\textbackslash{}`).
+- XeLaTeX через fontspec нативно понимает UTF-8 (кириллица, эмодзи), поэтому имена/контакты/буллеты не требуют дополнительной транслитерации.
+- `latex_url(value)` — отдельная функция для URL внутри `\href{...}{...}` (только разрешённые URL-символы).
+
+**`backend/latex/render.py`** — компиляция:
+- `_detect_engine()` — ищет `tectonic`, fallback на `xelatex` через `shutil.which`. Кешируется на жизнь процесса.
+- Jinja2 environment с переопределёнными разделителями (чтобы не конфликтовало с TeX):
+  - блоки: `<% ... %>` (вместо `{% %}`)
+  - переменные: `<< var >>` (вместо `{{ }}`)
+  - комментарии: `<# ... #>`
+- Регистрируется фильтр `tex` (экранизация) и `texurl`.
+- `_build_context(data)` нормализует распарсенный markdown:
+  - имя, headline, контакты (с автодетекцией e-mail/телефона/ссылки/локации — для шаблонов с иконками)
+  - `summary`, `experience`, `education`, `projects`, `skills`, `languages`, `other_sections`
+- `render_latex(data, template)` → str: jinja2 рендерит `templates/<name>.tex.j2`.
+- `compile_pdf(data, template)` → bytes: рендерит TeX, пишет в `tempfile.TemporaryDirectory`, запускает компилятор с таймаутом 60s, читает `resume.pdf`. Ошибка → `LatexCompileError` с хвостом лога.
+- **In-memory кеш**: ключ = SHA1 от `(template, rendered TeX)`. TTL 5 минут, max 32 записи (LRU-ish). Чтобы превью не дёргало tectonic при каждом keystroke в EditPanel.
+
+### 1.2 `backend/main.py`
+
+- Удалён весь WeasyPrint-блок: `_BASE_CSS`, `_TEMPLATE_VARS`, `render_html`, `_render_entry`, `_render_kv_inline`, `_render_kv_tags`, старый `build_pdf`. Парсер `parse_resume` оставлен — он же используется в `compile_pdf`.
+- Новый `build_pdf(text, template)` — тонкая обёртка: `parse_resume → compile_pdf`. Если шаблон неизвестен, fallback на первый из `LATEX_TEMPLATES`.
+- `/api/pdf` теперь принимает `inline: bool` в теле. При `inline=true` отдаётся `Content-Disposition: inline` (для iframe-превью), иначе `attachment` (скачивание). Заголовок `Cache-Control: no-store` чтобы браузер не подсовывал кеш.
+- Rate limit на `/api/pdf` поднят с 20/min до 60/min — иначе debounced auto-refresh упирается в лимит.
+- Ловится `LatexCompileError` отдельно от прочих ошибок, в API возвращается 500 с детализированным сообщением, в лог — хвост лога tectonic.
+- Хелпер `_call_openrouter(system_prompt, user_message)` вынесен из `tailor_resume`, чтобы переиспользоваться в `improve_resume`.
+
+### 1.3 `backend/requirements.txt`
+
+- `+jinja2>=3.1.4`
+- `-weasyprint>=61.0`
+
+### 1.4 `Dockerfile`
+
+- Stage 2 (python:3.12-slim) дополнен:
+  - `curl`, `ca-certificates`, `fontconfig`
+  - `fonts-dejavu-core`, `fonts-dejavu-extra`, `fonts-liberation`, `fonts-liberation2`, `fonts-noto-core` (поддержка кириллицы для всех шаблонов через DejaVu Sans/Serif)
+  - `fc-cache -f`
+- Tectonic 0.15.0 скачивается с GitHub Releases, multi-arch (x86_64 + aarch64).
+- `TECTONIC_CACHE_DIR=/app/.tectonic-cache`.
+- **Pre-warm**: dummy-документ со всеми пакетами, которые используют шаблоны (`fontspec`, `geometry`, `xcolor`, `titlesec`, `enumitem`, `fontawesome5`, `paracol`, `hyperref`, `tcolorbox`, `tabularx`, `multicol`, `ragged2e`, `etoolbox`, `tikz`, `eso-pic`). Tectonic при первом запуске тянет ~50 пакетов и пишет в кеш — после pre-warm в Docker первый реальный PDF собирается за ~1.5s, без pre-warm 8–15s.
+- `COPY backend/main.py .` → `COPY backend/ ./` (теперь копируется `latex/` и `templates/`).
+
+---
+
+## 2. 6 новых LaTeX-шаблонов
+
+Все живут в `backend/templates/*.tex.j2`. Каждый — независимый `\documentclass{article}` (без общего base — у них принципиально разная геометрия и пакеты). XeLaTeX, DejaVu Sans / DejaVu Serif как основной шрифт (есть в любом Linux Docker, поддерживает кириллицу).
+
+| ID | Стиль | Особенности |
+|---|---|---|
+| `awesome` | Awesome-CV-вдохновлённый | Indigo accent (#2D5BFF), большой centered name, иконки FontAwesome для контактов, тонкие линии под секциями |
+| `two_column` | Двухколоночный | paracol 36/64, тёмный sidebar (#1F2D3D) с золотым акцентом (#F59E0B). Sidebar-bg через tikz + eso-pic растянут на всю высоту страницы |
+| `minimal` | Минималистичный serif | DejaVu Serif, много воздуха, золотая мелкая черта-разделитель под именем, mark caps для секций |
+| `bold` | Большой header-bar | Чёрный header через tikz overlay, ярко-красная плашка (#E11D48), круглые буллеты accent-цвета |
+| `executive` | Классический серьёзный | Centered header, navy + grey, тонкая horizontal-rule под каждой секцией, italic для subtitle |
+| `vivid` | Цветной градиент | Linear-shade purple→pink через tikz, white text на header, rounded "pill"-tags для skills через tcolorbox |
+
+### 2.1 Контракт jinja-контекста
+
+Шаблоны получают одно и то же:
 
 ```python
 {
-  "header": {"name": str, "headline": str, "contacts": [str]},
-  "sections": [
-    {"title": "SUMMARY", "type": "text", "content": str},
-    {"title": "EXPERIENCE", "type": "entries", "entries": [
-       {"title": str, "subtitle": str, "period": str, "location": str,
-        "bullets": [str], "description": str}
-    ]},
-    {"title": "SKILLS", "type": "kv", "items": [{"label": str, "value": str}]},
-  ]
+    "name": str, "headline": str, "contacts": [str],
+    "emails": [str], "phones": [str], "links": [str], "other_contacts": [str],
+    "summary": str | None,
+    "experience": [Entry], "education": [Entry], "projects": [Entry],
+    "skills": [KV],
+    "languages": str | None,
+    "other_sections": [{title, content|entries|items}],
 }
 ```
 
-Хелперы: `_section_type`, `_parse_entries`, `_parse_kv`. Поддержка RU/EN названий секций (`EXPERIENCE`/`ОПЫТ`, `SKILLS`/`НАВЫКИ` и т.д.).
+Где `Entry = {title, subtitle, period, location, bullets, description}`, `KV = {label, value}`.
+
+### 2.2 Нюансы, которые ловились
+
+- **Комментарии Jinja2**: `{# comment #}` нужно писать как `<# comment #>` после переопределения разделителей. Иначе `#` пролетает в LaTeX и tex падает на `macro parameter character #'`.
+- **Switch-команды без пробела**: `{\large<< var >>}` после рендера даёт `\largeFoo` — LaTeX считает это командой и падает. Везде заменено на `{\large << var >>}` или закрытие через `\color{...}` (после `}` сцепления не происходит).
+- **`\MakeUppercase` в format-блоке titleformat**: ломал after-code (`\textcolor{rule}` → `\textcolor{RULE}` → undefined color). Перенесён в before-code wrap.
+- **`\faMapMarkerAlt` отсутствует** в той версии fontawesome5, которую тянет tectonic. Везде используется `\faMapMarker*` (звёздная форма для solid-варианта).
+- **`contacts | join(...) | tex`**: фильтр `tex` экранировал разделители, в PDF появлялся литерал `\{\}\textperiodcentered\{\}`. Заменено на `contacts | map('tex') | join('...')` — экранизация по элементу, разделитель остаётся raw.
 
 ---
 
-## 3. Backend — 6 шаблонов (WeasyPrint)
+## 3. Endpoint `/api/improve` (улучшение без вакансии)
 
-**Файл:** `backend/main.py`
+`backend/main.py`:
 
-- `_BASE_CSS` — базовая раскладка через CSS variables.
-- `_TEMPLATE_VARS` — словарь оверрайдов для каждого шаблона.
-- `render_html(data, template)` → HTML с правильной структурой (period справа через flex, location под заголовком, bullets с маркерами).
-- `_TAG_TEMPLATES = {"technical", "creative"}` — для них skills рендерятся как теги (`_render_kv_tags`), для остальных — inline (`_render_kv_inline`).
-- 6 шаблонов: `default`, `modern`, `corporate`, `minimal`, `technical`, `creative`.
-- `build_pdf(text, template)` — парсит, рендерит HTML, WeasyPrint → bytes. FPDF удалён, ветка `if template in (...)` убрана.
+- Новый `SYSTEM_PROMPT_IMPROVE` — переписать резюме в action verbs, исправить грамматику, привести к чистой структуре, сохранить все факты и метрики. Не таргетировать под вакансию.
+- `ImproveRequest` / `ImproveResponse` модели pydantic с тем же лимитом 15 KB, что и `/api/tailor`.
+- `POST /api/improve` с `@limiter.limit("5/minute")`. Использует `_call_openrouter(SYSTEM_PROMPT_IMPROVE, user_message)`.
+- Smoke-тесты: `test_improve_size_limit` (резюме > 15KB → 422), `test_improve_rejects_empty` (пустое → 400).
 
 ---
 
-## 4. Backend — critical fixes
+## 4. Frontend — PDF-превью через iframe
 
-- **SSRF (`/api/fetch-url`):** проверка scheme (http/https), резолв hostname через `socket.gethostbyname`, блок `is_private/is_loopback/is_link_local/is_multicast`. AWS metadata `169.254.169.254` и `127.0.0.1` блокируются.
-- **PDF upload (`/api/extract-pdf`):** проверка `content_type == application/pdf`, лимит 5 MB (`MAX_PDF_SIZE`), `@limiter.limit("10/minute")`.
-- **Healthcheck Dockerfile:** добавлен `HEALTHCHECK` через `httpx.get(/health)` каждые 30s.
-- **Static dir опционально:** при локальном запуске вне Docker `/app/static` отсутствует, теперь fallback на `backend/static`, mount только если папка существует — иначе тесты не могли импортировать `main`.
+### 4.1 `frontend/src/api.js`
 
----
+- `+ previewPdf(text, template, {signal})` → `Blob`. Отправляет `inline: true`. Принимает `AbortSignal` для отмены через `AbortController`.
+- `+ improveResume(resume)` → `string`.
+- `downloadPdf` теперь явно отправляет `inline: false`.
 
-## 5. Backend — smoke tests
+### 4.2 `PreviewCard.jsx` (переписан)
 
-**Новые файлы:** `backend/tests/__init__.py`, `backend/tests/test_smoke.py`
+- `useState pdfUrl, pdfError, refreshing`. `useRef abortRef, lastUrlRef`.
+- `useEffect [result, template]` → debounce 800ms → `AbortController` отменяет предыдущий запрос → `api.previewPdf` → `URL.createObjectURL`. Старый blob URL ревокается. Cleanup в return снимает таймер; cleanup на unmount отменяет in-flight запрос и ревокает blob.
+- Состояния отображения:
+  - нет результата + не загрузка → SkeletonPaper (как было)
+  - AI генерирует → spinner
+  - есть result, нет pdfUrl ещё → "Рендерю PDF…"
+  - есть pdfUrl → `<iframe key={template} src="blob:...#toolbar=0&navpanes=0">`
+  - идёт re-render → плавающий badge "Обновляю" с пульсирующей точкой
+  - ошибка → красный блок с детализированным сообщением
+- `TEMPLATES = ['awesome', 'two_column', 'minimal', 'bold', 'executive', 'vivid']` — синхронизировано с бэком. `TEMPLATE_LABELS` для подписи на кнопке.
 
-12 тестов:
-- `test_health_returns_ok` — `/health` + проверка `model`
-- `test_tailor_size_limit_resume` — резюме > 15KB → 422
-- `test_tailor_size_limit_job` — вакансия > 25KB → 422
-- `test_extract_pdf_rejects_non_pdf` — не-PDF → 400
-- `test_extract_pdf_rejects_size` — > 5MB → 400
-- `test_fetch_url_blocks_loopback` — `127.0.0.1` → 400
-- `test_fetch_url_blocks_private_ip` — `10.0.0.1` → 400
-- `test_fetch_url_blocks_link_local` — `169.254.169.254` → 400
-- `test_fetch_url_blocks_non_http` — `file://` → 400
-- `test_parse_resume_basic` — полная проверка парсера: header, secs, entries, kv
-- `test_parse_resume_handles_minimal` — минимальный edge case
-- `test_pdf_generation_all_templates` — все 6 шаблонов генерируют валидный PDF (`%PDF` magic + > 1KB)
+### 4.3 `PreviewCard.module.css`
 
-**Результат:** 12/12 проходит под pinned `requirements.txt` (системный Python на Kali имеет несовместимость weasyprint/pydyf, но Docker и `pip install -r requirements.txt` в venv работают).
-
-`backend/requirements.txt`: + `pytest>=8.0.0`, `pytest-asyncio>=0.23.0`.
+- `.previewBody` — flex row, iframe + EditPanel в одну линию (на мобилке column).
+- `.pdfFrame` — `width: 100%; height: 100%; border: 0`.
+- `.refreshBadge` — absolute top-right с пульсирующей точкой (`@keyframes pulse`).
+- A4-скелетон конвертирован на `aspect-ratio: 210/297` чтобы корректно масштабироваться.
 
 ---
 
-## 6. Frontend — расширенная структурированная форма
+## 5. Frontend — Sidebar редактирования
 
-**Файл:** `frontend/src/components/StructuredResumeForm/StructuredResumeForm.jsx`
+### 5.1 `frontend/src/utils/parseResume.js`
 
-Добавлены секции (с динамическими списками add/remove):
-- **Опыт работы (`experience`):** role, company, period, location, bullets (textarea, по строкам)
-- **Образование (`education`):** degree, institution, period
-- **Навыки (`skills`):** label (категория) + value (через запятую)
+Перенесён сюда из `components/ResumeRenderer/parseResume.js`. Логика не менялась — это JS-зеркало python-парсера: header + sections (`text` / `entries` / `kv`).
 
-Стили в `StructuredResumeForm.module.css`: `.entryBox`, `.entryGrid` (grid 1fr 1fr), `.entryRemove` (absolute), `.bulletsTextarea`, `.subLabel`.
+### 5.2 `components/PreviewCard/serialize.js` (новый)
 
----
+`serializeResume(data) → str` — обратное преобразование parsed-tree в structured-markdown (тот же формат, что AI и LaTeX-рендер). Используется в EditPanel при сохранении блока.
 
-## 7. Frontend — `serializeStructuredData` → markdown
+### 5.3 `components/PreviewCard/EditPanel.jsx` (новый, полная реализация)
 
-**Файл:** `frontend/src/App.jsx`
+- Парсит `result` через `useMemo(parseResume(result))`.
+- Сбор плоского списка блоков:
+  - **Header** (имя, headline, контакты)
+  - Для каждой `text`-секции (Summary, Languages, …) — отдельный блок
+  - Для каждой `entries`-секции — по блоку на каждый entry + дополнительный pseudo-блок `+ Добавить запись (Experience)`
+  - Для каждой `kv`-секции — по блоку на каждый skill + `+ Добавить навык`
+- Состояние `openId` — какой блок развёрнут. Клик на header блока — toggle.
+- Развёрнутый блок показывает inline-форму с полями именно этого блока (`HeaderForm`, `TextForm`, `EntryForm`, `SkillForm`).
+- Сохранение через `patch(mutator)`:
+  - `structuredClone(parsed)` → mutator меняет нужный путь → `serializeResume(next)` → вызывается `onChange(markdown)`.
+  - Из `App.jsx` это `setResult` → меняется `result` → useEffect в PreviewCard стреляет debounce → PDF перерисовывается.
+- `onDelete` для entry/skill убирает элемент из массива через `splice`.
+- Никаких бакендов — всё мутируется локально, AI не вызывается.
 
-Полностью переписан. Теперь выдаёт **тот же markdown-формат**, что AI:
-- Header: name / headline / contacts (location + values + links через `·`)
-- `## SUMMARY`
-- `## EXPERIENCE` с `### Role · Company`, период, `* bullets`
-- `## EDUCATION` аналогично
-- `## SKILLS` с `**Label:** value` парами
+### 5.4 `components/PreviewCard/EditPanel.module.css` (новый)
 
-Это даёт preview live даже до запроса к AI и упрощает AI задачу (input в том же формате, что output).
+- `.panel` — sidebar 280–360px справа от PDF, на узких экранах (≤980px) уходит под PDF.
+- Каждый блок — карточка с border, на hover синий outline, на open — accent border + box-shadow.
+- Form-поля: `.input`, `.textarea` с focus-стейтом. `.grid2` — двухколоночная сетка для polished layout пары полей (Title/Subtitle, Period/Location).
+- Кнопки: `.saveBtn` (синяя primary), `.deleteBtn` (red outline).
 
----
+### 5.5 i18n
 
-## 8. Frontend — i18n
-
-**Файл:** `frontend/src/i18n.js`
-
-В `RU` и `EN` добавлены ключи в `structured`:
-- Секции: `experienceTitle`, `educationTitle`, `skillsTitle`
-- Поля: `role`, `company`, `period`, `locationField`, `bullets`, `degree`, `institution`, `skillLabel`, `skillValue`
-- Кнопки: `addExperience`, `addEducation`, `addSkill`
-- Placeholders для всех новых полей
-
----
-
-## 9. Frontend — JS parser + renderer (live preview)
-
-**Новый файл:** `frontend/src/components/ResumeRenderer/parseResume.js`
-
-Зеркальная реализация `parse_resume` Python-парсера. Идентичный output:
-- `ENTRY_SECTIONS` / `KV_SECTIONS` с RU+EN названиями
-- `parseEntries` / `parseKv` хелперы
-- Header → name / headline / contacts (через `·` `•` `|`)
-
-**Полностью переписан:** `frontend/src/components/ResumeRenderer/renderResumeHtml.js`
-- Использует `parseResume`.
-- Эмитит HTML с классами `rv-name`, `rv-headline`, `rv-contacts`, `rv-section`, `rv-entry-header/title/subtitle/period/location/bullets`, `rv-skill-row/label/value`, `rv-skill-tag-row/label/tag`.
-- `TAG_TEMPLATES = {technical, creative}` — для них skills как теги, для остальных inline.
-- Принимает `template` параметр (раньше игнорировался).
-
-**Обновлён:** `ResumeRenderer.jsx` — пробрасывает `template` в `renderResumeHtml`.
+В RU и EN добавлены ключи `edit.*`: title, header, name, headline, contacts, title2, subtitle, period, location, bullets, description, skillLabel, skillValue, save, delete, addEntry, addSkill, untitled, skill.
 
 ---
 
-## 10. Frontend — 6 шаблонов CSS
+## 6. Frontend — кнопка «✨ Улучшить резюме»
 
-**Файл:** `frontend/src/styles/resume.css`
+### 6.1 `ResumeCard.jsx`
 
-Переписан целиком. Структура:
-- `.rv-resume` имеет CSS-переменные (`--accent`, `--bg-header`, `--fg-subtle`, `--section-line`, `--tag-bg` и т.д.).
-- Базовая раскладка: header с цветовой полосой слева, body с секциями, entries с `display: flex; justify-content: space-between` (period выровнен вправо), bullets `list-style: disc` с `::marker` в цвет акцента.
-- Skills inline + tags (`.rv-skill-tag` — pill-style).
-- Шаблон-специфичные оверрайды через `.rv-resume[data-template="..."]`:
-  - **default:** navy + soft blue
-  - **modern:** dark navy + cyan
-  - **corporate:** light header + tracking
-  - **minimal:** чёрно-белый, секции с тонкой линией, no header bar
-  - **technical:** green tones, mono font для period/tags
-  - **creative:** sidebar grid (`grid-template-columns: 1fr 2fr`), pink palette, skills/languages в сайдбар
+- Новые props: `onImprove`, `canImprove`, `isImproving`.
+- Кнопка `.improveBtn` под основным контентом карточки (под textarea / под структурированной формой). Disabled когда нет резюме или идёт улучшение/таилоринг.
+- Лейбл переключается: `t.improve.button` ↔ `t.improve.running`.
 
----
+### 6.2 `ResumeCard.module.css`
 
-## 11. Frontend — PreviewCard 6 кнопок
+- `.improveBtn` — градиентный фон (purple→pink, 8% opacity), accent border, accent text. Hover поднимает opacity до 14%.
+- `.improveSparkle` — отдельный span для эмодзи ✨ (по сути просто увеличенный font-size).
 
-**Файл:** `frontend/src/components/PreviewCard/PreviewCard.jsx`
+### 6.3 `App.jsx`
 
-`TEMPLATES = ['default', 'modern', 'corporate', 'minimal', 'technical', 'creative']`
+- `+ isImproving` state.
+- `+ handleImprove()` — повторяет логику `handleGenerate`, но без проверки на вакансию и вызывает `api.improveResume(resume)`.
+- В `JobCard` `isLoading={isLoading || isImproving}` — пока идёт улучшение, кнопка «Сгенерировать» тоже залочена.
+- `ResumeCard` получает `onImprove={handleImprove}`, `canImprove={resumeNonEmpty}`, `isImproving={isImproving}`.
 
-**Файл:** `frontend/src/components/PreviewCard/PreviewCard.module.css`
+### 6.4 i18n
 
-`.templateRow` и `.templateSelector` теперь имеют `flex-wrap: wrap` чтобы кнопки переносились на 2 строки.
+`improve: { button, running }` в RU и EN.
 
 ---
 
-## 12. Frontend — localStorage + canGenerate
+## 7. Frontend — чистка legacy HTML-рендера
 
-**Файл:** `frontend/src/App.jsx`
+Удалены:
+- `frontend/src/components/ResumeRenderer/` (ResumeRenderer.jsx + renderResumeHtml.js + parseResume.js — parseResume переехал в `utils/`)
+- `frontend/src/styles/resume.css` (5 KB CSS старых HTML-шаблонов)
+- Импорт `./styles/resume.css` из `main.jsx`
 
-- Язык: `useState(() => localStorage.getItem('lang') || 'ru')`, `useEffect` пишет обратно + ставит `document.documentElement.lang`.
-- `canGenerate` вычисляется по факту: есть текст резюме (или непустая структурированная форма) И описание вакансии.
-- `<JobCard canGenerate={canGenerate} />` → `disabled={isLoading || !canGenerate}`.
+Заменён `ExpandModal.jsx`:
+- было: `<ResumeRenderer text={result} template={template} />` — рендер HTML на лету
+- стало: `useEffect` → `api.previewPdf` → `<iframe src="blob:...">`. Cleanup ревокает blob.
+- `.inner` расширен (720×1000px max) — на full-screen PDF нужно больше места.
 
-**Файл:** `frontend/src/components/JobCard/JobCard.jsx` — принимает `canGenerate`, прокидывает в disabled.
-
----
-
-## 13. Прочее
-
-- `.gitignore` дополнен: `backend/__pycache__/`, `backend/.venv/`, `backend/tests/__pycache__/`, `.pytest_cache/`.
+Удалены legacy-стили из `ExpandModal.module.css`: `.content`, `:global(.rv-*)` оверрайды.
 
 ---
 
-## Затронутые файлы
+## 8. Тесты
+
+`backend/tests/test_smoke.py`:
+
+Старый `test_pdf_generation_all_templates` (требовал WeasyPrint) удалён. Добавлены:
+
+- `test_latex_render_all_templates` — все 6 шаблонов рендерят валидный LaTeX, `\begin{document}/\end{document}` присутствуют, спец-символы в данных корректно экранированы.
+- `test_latex_escape_dangerous_chars` — все спец-символы `& % $ # _ { } ~ ^ \` экранируются, обратный слеш становится `\textbackslash{}`.
+- `test_pdf_generation_skipped_without_engine` — если есть `tectonic` или `xelatex` в PATH, реально собирается PDF (`%PDF` magic + размер > 500 байт) для всех 6 шаблонов. Без движка тест skip.
+- `test_improve_size_limit` — резюме > 15KB → 422 (validator pydantic).
+- `test_improve_rejects_empty` — пустое/whitespace-only резюме → 400.
+
+**Итого: 16 тестов, все зелёные** (`pytest tests/ -v`). Без tectonic локально на Kali 14 проходит + 2 skip; с tectonic — 16/16.
+
+---
+
+## 9. Архитектура потока: что происходит при изменении в EditPanel
+
+1. Пользователь меняет, например, период работы в inline-форме блока «Senior Engineer · TechCorp» и жмёт «Сохранить».
+2. `EntryForm.save()` вызывает `onSave(updated)` → `patch(mutator)` в `EditPanel.jsx`.
+3. `patch`: `structuredClone(parsed)` → mutator меняет `n.sections[sIdx].entries[eIdx]` → `serializeResume(next)` собирает новый markdown.
+4. `onChange(markdown)` в `EditPanel` = `setResult` в `App.jsx`.
+5. `App.jsx` → `result` обновился → `PreviewCard` получает новый `result`.
+6. `useEffect([result, template])` в PreviewCard → debounce 800ms → AbortController прерывает любой in-flight запрос → `api.previewPdf(result, template)` → `POST /api/pdf {text, template, inline: true}`.
+7. Backend: rate-limit 60/min → `build_pdf(text, template)` → `parse_resume(text)` → `compile_pdf(data, template)` → Jinja2 рендер `templates/awesome.tex.j2` → SHA1 кеш-ключ от TeX → если в кеше — отдаётся сразу, иначе `tectonic compile` (≤60s, кеш на 5 мин) → bytes.
+8. Response: `Content-Type: application/pdf, Content-Disposition: inline, Cache-Control: no-store` + bytes.
+9. Фронт: `Blob` → `URL.createObjectURL` → старый blob URL ревокается → новый `pdfUrl` → `<iframe key={template} src="blob:...#toolbar=0">` (key привязан к template, чтобы при смене шаблона iframe пересоздавался, а не пытался скроллиться внутри старого PDF).
+10. PDF отрисован.
+
+При смене шаблона (клик на кнопку footer) тот же useEffect отрабатывает заново, точно так же.
+
+---
+
+## 10. Затронутые файлы (полный список)
 
 ### Backend
-- `backend/main.py` — SYSTEM_PROMPT, парсер, рендер, 6 шаблонов, MODEL, SSRF, PDF MIME/limit, static optional
-- `backend/requirements.txt` — +pytest, pytest-asyncio
-- `backend/tests/__init__.py` — новый
-- `backend/tests/test_smoke.py` — новый, 12 тестов
-- `Dockerfile` — HEALTHCHECK
+- `backend/main.py` — переписан: убран WeasyPrint, добавлены /api/improve и /api/pdf?inline, новый _call_openrouter helper, build_pdf через latex.compile_pdf
+- `backend/requirements.txt` — +jinja2, -weasyprint
+- `backend/tests/test_smoke.py` — заменён pdf-test, добавлены latex/improve тесты
+- `backend/latex/__init__.py` — новый
+- `backend/latex/escape.py` — новый
+- `backend/latex/render.py` — новый (Jinja2 env, кеш, _build_context, compile_pdf)
+- `backend/templates/_base.tex.j2` — fallback-плейсхолдер (минимальный шаблон)
+- `backend/templates/awesome.tex.j2` — новый
+- `backend/templates/two_column.tex.j2` — новый
+- `backend/templates/minimal.tex.j2` — новый
+- `backend/templates/bold.tex.j2` — новый
+- `backend/templates/executive.tex.j2` — новый
+- `backend/templates/vivid.tex.j2` — новый
 
 ### Frontend
-- `frontend/src/App.jsx` — serialize переписан, localStorage, canGenerate, расширенный structuredData
-- `frontend/src/i18n.js` — ключи experience/education/skills + placeholders
-- `frontend/src/components/StructuredResumeForm/StructuredResumeForm.jsx` — +Experience/Education/Skills секции
-- `frontend/src/components/StructuredResumeForm/StructuredResumeForm.module.css` — entryBox, bulletsTextarea, subLabel
-- `frontend/src/components/JobCard/JobCard.jsx` — canGenerate prop
-- `frontend/src/components/PreviewCard/PreviewCard.jsx` — 6 templates
-- `frontend/src/components/PreviewCard/PreviewCard.module.css` — flex-wrap
-- `frontend/src/components/ResumeRenderer/ResumeRenderer.jsx` — пробрасывает template
-- `frontend/src/components/ResumeRenderer/renderResumeHtml.js` — полностью переписан
-- `frontend/src/components/ResumeRenderer/parseResume.js` — новый
-- `frontend/src/styles/resume.css` — 6 шаблонов с CSS variables, sidebar для creative
+- `frontend/src/api.js` — +previewPdf, +improveResume; downloadPdf теперь шлёт inline:false
+- `frontend/src/App.jsx` — +isImproving, +handleImprove, template default → 'awesome', onResultChange прокинут в PreviewCard
+- `frontend/src/main.jsx` — убран import resume.css
+- `frontend/src/i18n.js` — +preview.{rendering,refreshing,previewError}, +edit.*, +improve.* в RU и EN
+- `frontend/src/components/ResumeCard/ResumeCard.jsx` — +кнопка Улучшить с props
+- `frontend/src/components/ResumeCard/ResumeCard.module.css` — +.improveBtn стили
+- `frontend/src/components/PreviewCard/PreviewCard.jsx` — переписан целиком (iframe + debounce + EditPanel slot)
+- `frontend/src/components/PreviewCard/PreviewCard.module.css` — переписан (split layout, pdfFrame, refreshBadge)
+- `frontend/src/components/PreviewCard/EditPanel.jsx` — новый
+- `frontend/src/components/PreviewCard/EditPanel.module.css` — новый
+- `frontend/src/components/PreviewCard/serialize.js` — новый (parsed → markdown)
+- `frontend/src/components/ExpandModal/ExpandModal.jsx` — переписан на iframe
+- `frontend/src/components/ExpandModal/ExpandModal.module.css` — переписан под полноэкранный PDF
+- `frontend/src/utils/parseResume.js` — переехал из components/ResumeRenderer/
 
-### Конфиг
-- `.gitignore` — pycache, venv
+### Удалены
+- `frontend/src/components/ResumeRenderer/` (вся папка)
+- `frontend/src/styles/resume.css`
+
+### Инфраструктура
+- `Dockerfile` — tectonic 0.15.0 + fonts + pre-warm + COPY backend/ ./
 
 ---
 
-## Verification
+## 11. Verification
 
 ```bash
-# Backend tests (12/12 под pinned requirements.txt)
-cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/pytest tests/ -v
+# Backend tests (16/16 при наличии tectonic; 14+2 skip без)
+cd backend && pytest tests/ -v
 
-# Frontend build (✅ 180KB JS, 25KB CSS)
+# Frontend build
 cd frontend && npm run build
+#   ✓ 58 modules transformed
+#   dist/assets/index-*.css ~23 KB (gzip 4.7)
+#   dist/assets/index-*.js ~189 KB (gzip 59)
 
-# JS-парсер выдаёт идентичную Python-парсеру структуру (проверено через node import)
+# Локально с tectonic в PATH — реальная сборка PDF через TestClient
+python -c "
+import sys; sys.path.insert(0,'backend')
+from fastapi.testclient import TestClient
+from main import app
+c = TestClient(app)
+text = open('sample.md').read()
+for tpl in ['awesome','two_column','minimal','bold','executive','vivid']:
+    r = c.post('/api/pdf', json={'text': text, 'template': tpl, 'inline': True})
+    print(tpl, r.status_code, len(r.content), r.content[:4])
+"
+
+# Docker
+docker compose up --build
 ```
 
 ---
 
-## Что НЕ входит (по плану)
+## 12. Что НЕ входило (по плану)
 
-- Mobile responsive
-- Полные тесты + GitHub Actions (только smoke)
-- Lifespan / httpx pool / threadpool / retry
-- API key rotation
-- Аккаунты, история, квота
+- ATS-score
+- Drag-and-drop переупорядочивание блоков в EditPanel
+- WYSIWYG-форматирование (bold/italic) внутри блока — только plain text
+- LinkedIn import
+- Кастомный шрифт под пользователя (Inter/EB Garamond) — пока DejaVu Sans/Serif для надёжной кириллицы
+- Click прямо по PDF (вместо этого sidebar — UX тот же, реализация на порядок проще)
+- Реализация resume-кеша на стороне фронта (полагаемся на backend in-memory + AbortController + debounce)
+
+---
+
+## 13. Известные риски
+
+- Tectonic при первом холодном старте без pre-warm докачивает пакеты (~10s overhead) — pre-warm в Dockerfile должен это закрыть, но если на production первый запрос всё-таки попадает на cold cache, юзер увидит спиннер дольше обычного. Кеш в `TECTONIC_CACHE_DIR=/app/.tectonic-cache` сохраняется между запусками только если volume mount; на эфемерных платформах (Fly.io scratch-старт) pre-warm должен сработать.
+- Pydantic-валидатор `resume_size` принимает пустую строку — серверная проверка `if not body.resume.strip()` ловит это до AI-вызова, возвращая 400.
+- EditPanel мутирует структуру и пересобирает markdown — если AI выплюнул нестандартное форматирование (несколько пробелов, странные `·`), парсер потеряет нюансы и при serialize получим slightly другой markdown. На практике AI следует SYSTEM_PROMPT и формат стабилен; ручной ввод в EditPanel идёт уже через нашу строгую сериализацию.

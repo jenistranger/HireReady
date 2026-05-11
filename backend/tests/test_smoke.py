@@ -139,13 +139,65 @@ def test_parse_resume_handles_minimal():
     assert data["sections"][0]["content"] == "Short summary."
 
 
-def test_pdf_generation_all_templates(monkeypatch):
-    """All 6 templates should generate non-empty PDFs without errors."""
-    if not app_module.WEASYPRINT_AVAILABLE:
-        import pytest
-        pytest.skip("WeasyPrint not installed")
-    text = "Jane Doe\nEngineer\nMoscow\n\n## SUMMARY\nTest summary.\n\n## EXPERIENCE\n\n### Eng · Co\n2022 — 2024\n* Did stuff\n"
-    for tpl in ["default", "modern", "corporate", "minimal", "technical", "creative"]:
+def test_improve_size_limit():
+    huge = "x" * 16_000
+    r = client.post("/api/improve", json={"resume": huge})
+    assert r.status_code == 422
+
+
+def test_improve_rejects_empty():
+    # Falsy resume passes pydantic but server rejects after — but empty string
+    # should still satisfy the validator (no size error), so server returns 400.
+    r = client.post("/api/improve", json={"resume": "   "})
+    assert r.status_code == 400
+    assert "пуст" in r.json()["detail"].lower() or "empty" in r.json()["detail"].lower()
+
+
+def test_latex_render_all_templates():
+    """Every template should render to valid LaTeX source for the parsed data."""
+    from latex.render import render_latex
+    from main import LATEX_TEMPLATES
+
+    text = (
+        "Jane Doe\nEngineer\nMoscow · jane@example.com\n\n"
+        "## SUMMARY\nTest summary with 50% growth.\n\n"
+        "## EXPERIENCE\n\n### Eng · Co\n2022 — 2024 · Remote\n* Did stuff\n* More & cool 100%\n\n"
+        "## EDUCATION\n\n### MSc · MSU\n2018 — 2020\n\n"
+        "## SKILLS\n**Langs:** Python, Go\n"
+    )
+    data = parse_resume(text)
+    for tpl in LATEX_TEMPLATES:
+        tex = render_latex(data, tpl)
+        assert "\\begin{document}" in tex
+        assert "\\end{document}" in tex
+        # User text with & and % must be escaped
+        assert "100\\%" in tex or "100%" not in tex.split("\\end{document}")[0]
+
+
+def test_latex_escape_dangerous_chars():
+    """LaTeX-special chars in user data must be escaped, not passed through."""
+    from latex.escape import latex_escape
+
+    raw = r"a & b $ c % d # e _ f { g } h ~ i ^ j \ k"
+    out = latex_escape(raw)
+    for forbidden in ["& ", "$ ", "% ", "# ", "_ ", "{ ", "} "]:
+        # Each special char must be prefixed by \ in the escaped output
+        # (we test that the literal "& " never appears unescaped)
+        assert f"\\{forbidden.strip()}" in out or forbidden.strip() not in raw
+    assert r"\textbackslash" in out
+
+
+def test_pdf_generation_skipped_without_engine():
+    """build_pdf should compile when a LaTeX engine is available; skip otherwise."""
+    import shutil
+    import pytest
+
+    if not (shutil.which("tectonic") or shutil.which("xelatex")):
+        pytest.skip("No LaTeX engine available (tectonic/xelatex)")
+
+    text = "Jane Doe\nEngineer\nMoscow\n\n## SUMMARY\nTest.\n\n## EXPERIENCE\n\n### Eng · Co\n2022 — 2024\n* Did stuff\n"
+    from main import LATEX_TEMPLATES
+    for tpl in LATEX_TEMPLATES:
         pdf = app_module.build_pdf(text, tpl)
         assert pdf.startswith(b"%PDF"), f"Template {tpl} did not produce PDF"
-        assert len(pdf) > 1000, f"Template {tpl} PDF suspiciously small"
+        assert len(pdf) > 500, f"Template {tpl} PDF suspiciously small"

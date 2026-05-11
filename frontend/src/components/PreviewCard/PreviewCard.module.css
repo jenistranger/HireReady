@@ -20,22 +20,62 @@
 
 .headerRight { display: flex; gap: 8px; }
 
-.previewArea {
+.previewBody {
   flex: 1;
-  margin: 16px 20px;
-  border-radius: 10px;
-  background: rgba(240,242,245,1);
-  overflow-y: auto;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
+  flex-direction: row;
+  gap: 16px;
+  margin: 16px 20px;
   min-height: 585px;
 }
 
-/* A4 paper skeleton — 380×537px (210:297 ratio) */
+@media (max-width: 980px) {
+  .previewBody { flex-direction: column; }
+}
+
+.previewArea {
+  flex: 1.5;
+  border-radius: 10px;
+  background: rgba(240,242,245,1);
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  position: relative;
+  min-height: 600px;
+}
+
+.pdfFrame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: rgba(255,255,255,1);
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.10);
+}
+
+.refreshBadge {
+  position: absolute; top: 10px; right: 10px;
+  padding: 4px 10px; border-radius: 10px;
+  background: rgba(59,111,232,0.92); color: white;
+  font-size: 11px; font-family: "Plus Jakarta Sans-SemiBold", sans-serif;
+  display: flex; align-items: center; gap: 6px;
+  pointer-events: none;
+}
+
+.refreshBadge::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%;
+  background: white; opacity: 0.9;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+/* Empty state — A4 skeleton */
 .paperCard {
-  width: 380px; height: 537px; flex-shrink: 0;
+  width: 380px; max-width: 100%; aspect-ratio: 210/297;
   background: rgba(255,255,255,1); border-radius: 3px;
   box-shadow: 0 4px 24px 0 rgba(0,0,0,0.10);
   padding: 32px 28px;
@@ -43,19 +83,11 @@
   overflow: hidden;
 }
 
-/* Preview result — same A4 size */
-.previewResult {
-  width: 380px; height: 537px; flex-shrink: 0;
-  overflow-y: auto;
-  background: rgba(255,255,255,1); border-radius: 3px;
-  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.10);
-  font-family: "Plus Jakarta Sans-Regular";
-}
-
 /* Loading */
 .loadingState {
   display: flex; align-items: center; justify-content: center;
   flex-direction: column; gap: 12px;
+  width: 100%;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -69,6 +101,13 @@
 
 .loadingState span {
   font-size: 13px; font-family: "Plus Jakarta Sans-Regular"; color: rgba(138,143,158,1);
+}
+
+.errorState {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 24px; text-align: center;
+  color: rgba(220,38,38,0.95);
+  font-size: 13px;
 }
 
 /* Footer */

@@ -22,6 +22,17 @@ export async function tailorResume(resume, jobDescription) {
   return data.tailored_resume
 }
 
+export async function improveResume(resume) {
+  const resp = await fetch('/api/improve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resume }),
+  })
+  if (!resp.ok) throw await parseError(resp)
+  const data = await resp.json()
+  return data.improved_resume
+}
+
 export async function extractPdf(file) {
   const formData = new FormData()
   formData.append('file', file)
@@ -46,7 +57,18 @@ export async function downloadPdf(text, template) {
   const resp = await fetch('/api/pdf', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, template }),
+    body: JSON.stringify({ text, template, inline: false }),
+  })
+  if (!resp.ok) throw await parseError(resp)
+  return resp.blob()
+}
+
+export async function previewPdf(text, template, { signal } = {}) {
+  const resp = await fetch('/api/pdf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, template, inline: true }),
+    signal,
   })
   if (!resp.ok) throw await parseError(resp)
   return resp.blob()
