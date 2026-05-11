@@ -15,32 +15,74 @@ import * as api from './api'
 import styles from './App.module.css'
 
 function serializeStructuredData(data) {
-  const lines = []
-  if (data.name) lines.push(data.name)
-  if (data.headline) lines.push(data.headline)
-  if (data.location) lines.push(data.location)
+  const out = []
 
-  const validContacts = data.contacts.filter(c => c.type && c.value)
-  if (validContacts.length > 0) {
-    lines.push('')
-    lines.push('Contacts:')
-    validContacts.forEach(c => lines.push(`${c.type}: ${c.value}`))
+  if (data.name) out.push(data.name)
+  if (data.headline) out.push(data.headline)
+
+  const contactParts = []
+  if (data.location) contactParts.push(data.location)
+  for (const c of data.contacts || []) {
+    if (c.value) contactParts.push(c.value.trim())
+  }
+  for (const l of data.links || []) {
+    if (l && l.trim()) contactParts.push(l.trim())
+  }
+  if (contactParts.length) out.push(contactParts.join(' · '))
+
+  if (data.summary && data.summary.trim()) {
+    out.push('')
+    out.push('## SUMMARY')
+    out.push(data.summary.trim())
   }
 
-  if (data.summary) {
-    lines.push('')
-    lines.push('Summary:')
-    lines.push(data.summary)
+  const experience = (data.experience || []).filter(e => e.role || e.company)
+  if (experience.length) {
+    out.push('')
+    out.push('## EXPERIENCE')
+    for (const e of experience) {
+      out.push('')
+      const headerParts = []
+      if (e.role) headerParts.push(e.role)
+      if (e.company) headerParts.push(e.company)
+      out.push('### ' + headerParts.join(' · '))
+      const meta = []
+      if (e.period) meta.push(e.period)
+      if (e.location) meta.push(e.location)
+      if (meta.length) out.push(meta.join(' · '))
+      const bullets = (e.bullets || '').split('\n').map(b => b.trim()).filter(Boolean)
+      for (const b of bullets) out.push('* ' + b)
+    }
   }
 
-  const validLinks = data.links.filter(l => l.trim())
-  if (validLinks.length > 0) {
-    lines.push('')
-    lines.push('Links:')
-    validLinks.forEach(l => lines.push(l))
+  const education = (data.education || []).filter(e => e.degree || e.institution)
+  if (education.length) {
+    out.push('')
+    out.push('## EDUCATION')
+    for (const e of education) {
+      out.push('')
+      const headerParts = []
+      if (e.degree) headerParts.push(e.degree)
+      if (e.institution) headerParts.push(e.institution)
+      out.push('### ' + headerParts.join(' · '))
+      if (e.period) out.push(e.period)
+    }
   }
 
-  return lines.join('\n').trim()
+  const skills = (data.skills || []).filter(sk => sk.value)
+  if (skills.length) {
+    out.push('')
+    out.push('## SKILLS')
+    for (const sk of skills) {
+      if (sk.label) {
+        out.push(`**${sk.label}:** ${sk.value}`)
+      } else {
+        out.push(sk.value)
+      }
+    }
+  }
+
+  return out.join('\n').trim()
 }
 
 function resolveError(e, t) {
@@ -55,8 +97,15 @@ function resolveError(e, t) {
 }
 
 export function App() {
-  const [lang, setLang] = useState('ru')
+  const [lang, setLang] = useState(() => {
+    try { return localStorage.getItem('lang') || 'ru' } catch { return 'ru' }
+  })
   const t = lang === 'ru' ? RU : EN
+
+  useEffect(() => {
+    try { localStorage.setItem('lang', lang) } catch {}
+    document.documentElement.lang = lang
+  }, [lang])
 
   const [resumeText, setResumeText] = useState('')
   const [resumeMode, setResumeMode] = useState('text')
@@ -64,7 +113,10 @@ export function App() {
     name: '', headline: '', location: '',
     contacts: [{ type: '', value: '' }],
     summary: '',
-    links: ['']
+    links: [''],
+    experience: [],
+    education: [],
+    skills: [],
   })
   const [jobText, setJobText] = useState('')
   const [result, setResult] = useState('')
@@ -129,6 +181,11 @@ export function App() {
 
   // Update ref after every render so the keyboard handler always has latest version
   handleGenerateRef.current = handleGenerate
+
+  const resumeNonEmpty = resumeMode === 'structured'
+    ? Boolean(serializeStructuredData(structuredData))
+    : Boolean(resumeText.trim())
+  const canGenerate = resumeNonEmpty && Boolean(jobText.trim())
 
   async function handleExtractPdf(file, field) {
     setError(null)
@@ -223,6 +280,7 @@ export function App() {
               onGenerate={handleGenerate}
               isLoading={isLoading}
               elapsed={elapsed}
+              canGenerate={canGenerate}
             />
             <ProTip />
             <ErrorBanner message={error} />

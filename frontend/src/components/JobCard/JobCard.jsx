@@ -3,7 +3,7 @@ import { useLang } from '../../LangContext'
 
 const MAX_LEN = 5000
 
-export function JobCard({ value, onChange, onExpand, onExtractPdf, onPasteLink, onGenerate, isLoading, elapsed }) {
+export function JobCard({ value, onChange, onExpand, onExtractPdf, onPasteLink, onGenerate, isLoading, elapsed, canGenerate = true }) {
   const t = useLang()
   const fileRef = useRef(null)
 
@@ -47,7 +47,7 @@ export function JobCard({ value, onChange, onExpand, onExtractPdf, onPasteLink, 
           </button>
         </div>
         <div className="divider"></div>
-        <button className="btn-primary" onClick={onGenerate} disabled={isLoading}>
+        <button className="btn-primary" onClick={onGenerate} disabled={isLoading || !canGenerate}>
           <img src="/image/sparkles.png" alt="" />
           <span>{isLoading ? t.job.generating(elapsed) : t.job.generate}</span>
         </button>

@@ -3,7 +3,7 @@ import { useLang } from '../../LangContext'
 import { ResumeRenderer } from '../ResumeRenderer/ResumeRenderer'
 import styles from './PreviewCard.module.css'
 
-const TEMPLATES = ['default', 'modern', 'corporate']
+const TEMPLATES = ['default', 'modern', 'corporate', 'minimal', 'technical', 'creative']
 
 export function PreviewCard({ result, isLoading, template, onTemplateChange, onExpand, onDownloadPdf, onCopyText }) {
   const t = useLang()

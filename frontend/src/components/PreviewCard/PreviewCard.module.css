@@ -78,15 +78,17 @@
 }
 
 .templateRow {
-  display: flex; flex-direction: row; align-items: center; gap: 8px;
+  display: flex; flex-direction: row; align-items: flex-start; gap: 8px;
+  flex-wrap: wrap;
 }
 
 .templateLabel {
   font-size: 11px; font-family: "Plus Jakarta Sans-SemiBold";
   letter-spacing: 1px; color: rgba(138,143,158,1); flex-shrink: 0;
+  align-self: center;
 }
 
-.templateSelector { display: flex; gap: 4px; }
+.templateSelector { display: flex; gap: 4px; flex-wrap: wrap; }
 
 .footerActions {
   display: flex; flex-direction: row; gap: 10px; align-items: center;

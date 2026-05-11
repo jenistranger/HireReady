@@ -1,6 +1,10 @@
 .env
 .claude
 backend/test-pdf/
+backend/__pycache__/
+backend/.venv/
+backend/tests/__pycache__/
+.pytest_cache/
 CLAUDE.md
 .rtk/
 .codex
