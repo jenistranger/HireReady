@@ -10,6 +10,7 @@
 \usepackage[hidelinks]{hyperref}
 \usepackage{etoolbox}
 \usepackage{ragged2e}
+\usepackage{graphicx}
 
 \setmainfont{DejaVu Sans}[Scale=0.95]
 \newfontfamily\headingfont{DejaVu Sans}[Scale=1.0]
@@ -43,6 +44,7 @@
 <% if name %>
 \begingroup
 \centering
+<% if avatar_path %>\includegraphics[width=24mm]{<< avatar_path >>}\par\vspace{6pt}<% endif %>
 {\headingfont\bfseries\fontsize{26}{30}\selectfont\color{ink}<< name | tex >>}\par
 <% if headline %>\vspace{4pt}{\large\color{accent}<< headline | tex >>}\par<% endif %>
 <% if emails or phones or links or other_contacts %>

@@ -6,7 +6,6 @@
   box-shadow: 0 1px 6px 0 rgba(0,0,0,0.06);
   background: rgba(255,255,255,1);
   border: 1px solid rgba(226,230,238,1);
-  overflow: hidden;
 }
 
 .header {
@@ -117,8 +116,11 @@
 }
 
 .templateRow {
-  display: flex; flex-direction: row; align-items: flex-start; gap: 8px;
+  display: flex; flex-direction: row; align-items: center; gap: 12px;
   flex-wrap: wrap;
+  padding: 14px 20px 0;
+  position: relative;
+  z-index: 20;
 }
 
 .templateLabel {
@@ -126,8 +128,6 @@
   letter-spacing: 1px; color: rgba(138,143,158,1); flex-shrink: 0;
   align-self: center;
 }
-
-.templateSelector { display: flex; gap: 4px; flex-wrap: wrap; }
 
 .footerActions {
   display: flex; flex-direction: row; gap: 10px; align-items: center;

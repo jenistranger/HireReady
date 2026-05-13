@@ -18,3 +18,5 @@ frontend/pnpm-debug.log*
 backend/__pycache__/
 backend/latex/__pycache__/
 backend/tests/__pycache__/
+MVP-bounty.md
+templates-cv/

@@ -1,0 +1,139 @@
+<# Engineer (harshibar-inspired): dense ATS-friendly sans-serif, two-col tabular entries. #>
+\documentclass[a4paper,10.5pt]{article}
+
+\usepackage{fontspec}
+\usepackage[a4paper,top=14mm,bottom=14mm,left=16mm,right=16mm]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fontawesome5}
+\usepackage[hidelinks]{hyperref}
+\usepackage{etoolbox}
+\usepackage{tabularx}
+\usepackage{graphicx}
+
+\setmainfont{DejaVu Sans}[Scale=0.92]
+\newfontfamily\heavy{DejaVu Sans}[Scale=1.0]
+
+\definecolor{ink}{HTML}{1A1A1A}
+\definecolor{muted}{HTML}{5A5A5A}
+\definecolor{lightrule}{HTML}{BFC5CF}
+
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\linespread{1.18}
+
+\titleformat{\section}
+  {\heavy\bfseries\large\color{ink}}
+  {}{0pt}{\MakeUppercase}[\vspace{-2pt}\textcolor{lightrule}{\rule{\linewidth}{1.6pt}}]
+\titlespacing*{\section}{0pt}{10pt}{4pt}
+
+\setlist[itemize]{leftmargin=12pt,itemsep=0.5pt,topsep=1pt,parsep=0pt,label={$\vcenter{\hbox{\tiny$\bullet$}}$}}
+
+\newcommand{\entrytwocol}[4]{%
+  \noindent
+  \begin{tabularx}{\linewidth}{@{}Xr@{}}
+    {\bfseries\color{ink}#1} & {\color{muted}\small #2}\\
+    \ifstrempty{#3}{}{\itshape\color{muted}#3} & \ifstrempty{#4}{}{\color{muted}\small #4}\\
+  \end{tabularx}\par\vspace{-1pt}
+}
+
+\begin{document}
+
+% Header
+\begin{center}
+<% if avatar_path %>
+{\raisebox{-0.5\height}{\includegraphics[width=18mm]{<< avatar_path >>}}\hspace{8pt}%
+\raisebox{2pt}{\heavy\bfseries\fontsize{26}{28}\selectfont\color{ink}<< name | tex >>}}
+<% else %>
+{\heavy\bfseries\fontsize{28}{30}\selectfont\color{ink}<< name | tex >>}
+<% endif %>
+\par
+<% if headline %>\vspace{3pt}{\color{muted}<< headline | tex >>}\par<% endif %>
+\vspace{4pt}
+<% if emails or phones or links or other_contacts %>
+{\small\color{muted}%
+<% set parts = [] %>
+<% for p in phones %><% set _ = parts.append('\\faPhone*~\\texttt{' + (p | tex) + '}') %><% endfor %>
+<% for e in emails %><% set _ = parts.append('\\faEnvelope~\\texttt{' + (e | tex) + '}') %><% endfor %>
+<% for l in links %><% set _ = parts.append('\\faGlobe~\\texttt{' + (l | tex) + '}') %><% endfor %>
+<% for c in other_contacts %><% set _ = parts.append('\\faMapMarker*~' + (c | tex)) %><% endfor %>
+<< parts | join('  \\;$|$\\;\\,') >>%
+}\par
+<% endif %>
+\end{center}
+\vspace{2pt}
+
+<% if summary %>
+\section*{Summary}
+{\color{ink}<< summary | tex >>}
+<% endif %>
+
+<% if experience %>
+\section*{Experience}
+<% for e in experience %>
+\entrytwocol{<< e.subtitle | tex >>}{<< e.period | tex >>}{<< e.title | tex >>}{<< e.location | tex >>}
+<% if e.description %>{\small\color{muted}<< e.description | tex >>}\par<% endif %>
+<% if e.bullets %>
+\begin{itemize}
+<% for b in e.bullets %>\item \small << b | tex >>
+<% endfor %>
+\end{itemize}
+<% endif %>
+\vspace{2pt}
+<% endfor %>
+<% endif %>
+
+<% if projects %>
+\section*{Projects}
+<% for e in projects %>
+\entrytwocol{<< e.title | tex >>}{<< e.period | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}
+<% if e.bullets %>
+\begin{itemize}
+<% for b in e.bullets %>\item \small << b | tex >>
+<% endfor %>
+\end{itemize}
+<% endif %>
+\vspace{2pt}
+<% endfor %>
+<% endif %>
+
+<% if education %>
+\section*{Education}
+<% for e in education %>
+\entrytwocol{<< e.subtitle | tex >>}{<< e.period | tex >>}{<< e.title | tex >>}{<< e.location | tex >>}
+<% if e.bullets %>
+\begin{itemize}
+<% for b in e.bullets %>\item \small << b | tex >>
+<% endfor %>
+\end{itemize}
+<% endif %>
+<% endfor %>
+<% endif %>
+
+<% if skills %>
+\section*{Skills}
+\begin{itemize}[leftmargin=0pt,label={}]
+<% for s in skills %>
+\item \small <% if s.label %>{\bfseries\color{ink}<< s.label | tex >>}: <% endif %>{\color{ink}<< s.value | tex >>}
+<% endfor %>
+\end{itemize}
+<% endif %>
+
+<% if languages %>
+\section*{Languages}
+{\color{ink}<< languages | tex >>}
+<% endif %>
+
+<% for sec in other_sections %>
+\section*{<< sec.title | tex >>}
+<% if sec.content %>{\color{ink}<< sec.content | tex >>}<% endif %>
+<% if sec.entries %>
+<% for e in sec.entries %>
+\entrytwocol{<< e.title | tex >>}{<< e.period | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}
+<% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item \small << b | tex >><% endfor %>\end{itemize}<% endif %>
+<% endfor %>
+<% endif %>
+<% endfor %>
+
+\end{document}

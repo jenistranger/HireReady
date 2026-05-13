@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
+from typing import Literal, Optional
 from pydantic import BaseModel, field_validator
 import httpx
 from dotenv import load_dotenv
@@ -28,7 +29,7 @@ logger = logging.getLogger("resume_tailor")
 
 OPENROUTER_API_KEY = os.getenv("openrouter_api_key")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL = "google/gemini-2.0-flash-001"
+MODEL = "deepseek/deepseek-v4-flash"
 MAX_PDF_SIZE = 5 * 1024 * 1024  # 5 MB
 
 SYSTEM_PROMPT = """Ты — профессиональный HR-консультант и эксперт по составлению резюме. Твоя задача — переработать резюме кандидата под конкретную вакансию.
@@ -275,11 +276,16 @@ def _parse_kv(buf: list[str]) -> list[dict]:
 
 # ── PDF build (LaTeX) ──────────────────────────────────────────────
 
-def build_pdf(text: str, template: str) -> bytes:
+def build_pdf(
+    text: str,
+    template: str,
+    avatar_base64: Optional[str] = None,
+    avatar_shape: str = "circle",
+) -> bytes:
     if template not in LATEX_TEMPLATES:
         template = LATEX_TEMPLATES[0]
     data = parse_resume(text)
-    return compile_pdf(data, template)
+    return compile_pdf(data, template, avatar_base64=avatar_base64, avatar_shape=avatar_shape)
 
 
 # ── App setup ──────────────────────────────────────────────────────
@@ -356,6 +362,8 @@ class PdfRequest(BaseModel):
     text: str
     template: str = "awesome"
     inline: bool = False
+    avatar_base64: Optional[str] = None
+    avatar_shape: Literal["circle", "square"] = "circle"
 
 
 class UrlRequest(BaseModel):
@@ -402,7 +410,7 @@ async def _call_openrouter(system_prompt: str, user_message: str) -> str:
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost:8000",
+        "HTTP-Referer": "http://localhost:47821",
         "X-Title": "Resume Tailor",
     }
 
@@ -543,10 +551,17 @@ async def export_pdf(request: Request, body: PdfRequest):
     if not body.text.strip():
         raise HTTPException(status_code=400, detail="Текст пустой")
     try:
-        pdf_bytes = build_pdf(body.text, body.template)
+        pdf_bytes = build_pdf(
+            body.text,
+            body.template,
+            avatar_base64=body.avatar_base64,
+            avatar_shape=body.avatar_shape,
+        )
     except LatexCompileError as e:
         logger.error("LaTeX compile error: %s", e)
         raise HTTPException(status_code=500, detail="Не удалось скомпилировать PDF (LaTeX)")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:

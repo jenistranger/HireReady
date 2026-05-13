@@ -66,6 +66,7 @@ RUN printf '%s' '\documentclass[a4paper,11pt]{article}\
 \usepackage{multicol}\
 \usepackage{ragged2e}\
 \usepackage{etoolbox}\
+\usepackage{graphicx}\
 \setmainfont{DejaVu Sans}\
 \begin{document}prewarm\end{document}' > /tmp/prewarm.tex \
     && tectonic -X compile --outdir /tmp /tmp/prewarm.tex > /tmp/prewarm.log 2>&1 \
@@ -78,9 +79,9 @@ RUN adduser --disabled-password --gecos "" appuser && \
     chown -R appuser:appuser /app
 USER appuser
 
-EXPOSE 8000
+EXPOSE 47821
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD python -c "import httpx; httpx.get('http://localhost:8000/health', timeout=2).raise_for_status()" || exit 1
+  CMD python -c "import httpx; httpx.get('http://localhost:47821/health', timeout=2).raise_for_status()" || exit 1
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "47821"]

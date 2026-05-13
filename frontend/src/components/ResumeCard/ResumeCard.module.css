@@ -1,5 +1,11 @@
 .textarea { height: 140px; }
 
+.photoBlock {
+  padding: 10px 0 4px;
+  border-bottom: 1px dashed rgba(226, 230, 238, 1);
+  margin-bottom: 6px;
+}
+
 .tabs {
   display: flex;
   border-bottom: 1px solid rgba(226, 230, 238, 1);

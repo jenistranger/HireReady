@@ -53,21 +53,30 @@ export async function fetchUrl(url) {
   return data.text
 }
 
-export async function downloadPdf(text, template) {
+function buildPdfBody(text, template, inline, avatar) {
+  const body = { text, template, inline }
+  if (avatar?.base64) {
+    body.avatar_base64 = avatar.base64
+    body.avatar_shape = avatar.shape || 'circle'
+  }
+  return JSON.stringify(body)
+}
+
+export async function downloadPdf(text, template, avatar) {
   const resp = await fetch('/api/pdf', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, template, inline: false }),
+    body: buildPdfBody(text, template, false, avatar),
   })
   if (!resp.ok) throw await parseError(resp)
   return resp.blob()
 }
 
-export async function previewPdf(text, template, { signal } = {}) {
+export async function previewPdf(text, template, { signal, avatar } = {}) {
   const resp = await fetch('/api/pdf', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, template, inline: true }),
+    body: buildPdfBody(text, template, true, avatar),
     signal,
   })
   if (!resp.ok) throw await parseError(resp)

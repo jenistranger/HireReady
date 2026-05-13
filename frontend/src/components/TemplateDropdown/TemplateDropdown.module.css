@@ -1,0 +1,128 @@
+.wrap {
+  position: relative;
+  display: inline-flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.trigger {
+  display: inline-flex; align-items: center; gap: 12px;
+  min-width: 220px; max-width: 320px;
+  padding: 6px 12px; height: 42px;
+  background: white;
+  border: 1px solid rgba(226, 230, 238, 1);
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: "Plus Jakarta Sans-Regular";
+  transition: border-color 0.15s, box-shadow 0.15s;
+  text-align: left;
+}
+.trigger:hover:not(:disabled) {
+  border-color: rgba(59, 111, 232, 0.5);
+}
+.trigger:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.triggerInner {
+  display: flex; flex-direction: column;
+  gap: 1px; flex: 1; min-width: 0;
+}
+.triggerLabel {
+  font-size: 13px;
+  font-family: "Plus Jakarta Sans-SemiBold";
+  color: rgba(30, 30, 30, 1);
+  line-height: 1.2;
+}
+.triggerDesc {
+  font-size: 11px;
+  color: rgba(120, 128, 144, 1);
+  line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.chevron {
+  color: rgba(138, 143, 158, 1);
+  font-size: 12px;
+  transition: transform 0.15s;
+}
+.chevronOpen { transform: rotate(180deg); }
+
+.applyBtn {
+  height: 42px; padding: 0 18px;
+  border-radius: 8px; border: none;
+  background: rgba(59, 111, 232, 1);
+  color: white; cursor: pointer;
+  font-size: 13px;
+  font-family: "Plus Jakarta Sans-SemiBold";
+  transition: background 0.15s, opacity 0.15s;
+  white-space: nowrap;
+}
+.applyBtn:hover:not(:disabled) { background: rgba(49, 95, 210, 1); }
+.applyBtn:disabled {
+  background: rgba(226, 230, 238, 1);
+  color: rgba(138, 143, 158, 1);
+  cursor: not-allowed;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: max(280px, 100%);
+  max-width: 360px;
+  max-height: 340px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid rgba(226, 230, 238, 1);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  padding: 4px;
+  z-index: 50;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+.item:hover { background: rgba(244, 246, 249, 1); }
+.itemActive { background: rgba(59, 111, 232, 0.08); }
+.itemActive:hover { background: rgba(59, 111, 232, 0.12); }
+
+.itemMain {
+  display: flex; align-items: center; gap: 8px;
+  justify-content: space-between;
+}
+.itemLabel {
+  font-size: 13px;
+  font-family: "Plus Jakarta Sans-SemiBold";
+  color: rgba(30, 30, 30, 1);
+}
+.itemBadge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(34, 197, 94, 0.14);
+  color: rgba(21, 128, 61, 1);
+  font-family: "Plus Jakarta Sans-SemiBold";
+}
+.itemDesc {
+  font-size: 11.5px;
+  color: rgba(120, 128, 144, 1);
+  line-height: 1.4;
+}
+
+@media (max-width: 700px) {
+  .wrap { width: 100%; flex-wrap: wrap; }
+  .trigger { flex: 1; min-width: 0; max-width: none; }
+  .menu { width: 100%; max-width: none; }
+}

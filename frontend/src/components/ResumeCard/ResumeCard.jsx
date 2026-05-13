@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { useLang } from '../../LangContext'
 import { StructuredResumeForm } from '../StructuredResumeForm/StructuredResumeForm'
+import { PhotoUpload } from '../PhotoUpload/PhotoUpload'
 import styles from './ResumeCard.module.css'
 
 const MAX_LEN = 3000
@@ -17,6 +18,8 @@ export function ResumeCard({
   onImprove,
   canImprove,
   isImproving,
+  avatar,
+  onAvatarChange,
 }) {
   const t = useLang()
   const fileRef = useRef(null)
@@ -39,6 +42,12 @@ export function ResumeCard({
             </button>
           )}
         </div>
+
+        {onAvatarChange && (
+          <div className={styles.photoBlock}>
+            <PhotoUpload value={avatar} onChange={onAvatarChange} />
+          </div>
+        )}
 
         <div className={styles.tabs}>
           <button

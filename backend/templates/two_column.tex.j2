@@ -12,6 +12,7 @@
 \usepackage{etoolbox}
 \usepackage{tikz}
 \usepackage{eso-pic}
+\usepackage{graphicx}
 \usepackage[hidelinks]{hyperref}
 
 \AddToShipoutPictureBG{%
@@ -50,6 +51,11 @@
 \color{sideText}
 \setlength{\leftskip}{14pt}\setlength{\rightskip}{14pt}
 \vspace{16pt}
+
+<% if avatar_path %>
+\begin{center}\includegraphics[width=32mm]{<< avatar_path >>}\end{center}
+\vspace{8pt}
+<% endif %>
 
 <% if name %>
 {\bfseries\fontsize{18}{20}\selectfont << name | tex >>}\par

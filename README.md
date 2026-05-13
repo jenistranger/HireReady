@@ -1,61 +1,135 @@
-# Журнал изменений
+# Resume Tailor
 
-## [1.0.0] — 2026-05-06
+ИИ-таилоринг резюме под конкретную вакансию: вставляешь свой опыт + описание вакансии, на выходе — переработанное резюме в одном из 8 LaTeX-дизайнов с возможностью добавить фото.
 
-### Добавлено
-- FastAPI бэкенд (`backend/main.py`) с эндпоинтом `POST /api/tailor`
-- Интеграция с OpenRouter API, модель `google/gemini-2.0-flash-001`
-- Системный промпт для переработки резюме (русский язык, сохранение фактов, ключевые слова вакансии)
-- Фронтенд Vanilla JS/HTML/CSS (`backend/static/`) на русском языке
-- Двухколоночный интерфейс: поле резюме + поле вакансии, адаптивный (mobile)
-- Кнопка «Переработать резюме» с индикатором загрузки (спиннер)
-- Блок результата с кнопкой «Скопировать» (clipboard API + execCommand fallback)
-- Обработка ошибок на клиенте и сервере
-- `Dockerfile` на базе `python:3.12-slim`, non-root user, uvicorn
-- `docker-compose.yml` с передачей `.env` в контейнер
+## Стек
 
-### Запуск
+- **Backend:** FastAPI (Python 3.12), Pillow, slowapi, pypdf, Jinja2
+- **PDF-рендер:** LaTeX через [Tectonic](https://tectonic-typesetting.github.io/) (single-binary, кеширует пакеты с CTAN)
+- **Frontend:** React 18 + Vite, [react-easy-crop](https://github.com/ValentinH/react-easy-crop) для обрезки фото
+- **ИИ:** OpenRouter API (модель настраивается в `backend/main.py`)
+- **Контейнеризация:** Docker (multi-stage build, non-root user)
+
+## Возможности
+
+- Адаптация резюме под вакансию (`/api/tailor`) и улучшение без вакансии (`/api/improve`)
+- Импорт текста: вставка вручную, выгрузка PDF, загрузка вакансии по URL
+- Структурированная форма (имя, опыт работы с датами, образование, навыки по категориям) или свободный markdown-режим
+- Фото с встроенным редактором: zoom + drag, переключение круг/квадрат, лимит 5 МБ (JPG/PNG/WEBP)
+- 8 LaTeX-шаблонов, выбор через dropdown с описаниями + кнопкой «Применить»
+- Живой PDF-превью с debounce (рендер в iframe), скачивание готового файла
+- Кеши: PDF (128 слотов, TTL 30 мин) + предобработанные аватары (LRU 16 слотов) — повторные превью отдаются мгновенно
+- Локализация RU / EN
+
+## Шаблоны резюме
+
+| Ключ | Описание |
+|------|----------|
+| `awesome` | Современный, акцентный цвет, иконки контактов |
+| `two_column` | Тёмный sidebar и основная колонка |
+| `vivid` | Градиентный хедер, скилл-пилюли |
+| `classic` | Академичный, цветная полоса с именем (ModernCV-inspired) |
+| `engineer` | Плотный, ATS-friendly, sans-serif (harshibar-inspired) |
+| `academic` | Серьёзный serif, фото в углу шапки (CurVe-inspired) |
+| `personal` | Фото слева, контрастные date-chips (Boltach-inspired) |
+| `hipster` | Двухколоночный с цветными pills (simple-hipster-inspired) |
+
+Все шаблоны поддерживают опциональное фото — на бэке Pillow перед рендером декодирует base64, центрирует и (для круга) накладывает alpha-маску.
+
+## Запуск через Docker
+
 ```bash
+# .env должен содержать ключ OpenRouter
+echo 'openrouter_api_key=sk-or-v1-...' > .env
+
 docker compose build
 docker compose up -d
-# Приложение: http://localhost:8000
+# Приложение: http://localhost:47821
 ```
 
-## [1.3.0] — 2026-05-06
+## Локальный запуск (для разработки)
 
-### Исправлено
-- Переход с клиентского html2pdf.js на серверную генерацию через Python `fpdf2`
-- PDF был пустым из-за ограничений html2canvas — проблема устранена полностью
+```bash
+# Backend (требуется tectonic в $PATH)
+cd backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 47821
 
-### Добавлено
-- `POST /api/pdf` — принимает текст, возвращает PDF-файл
-- Дизайн PDF: тёмно-синяя шапка с акцент-полосой, имя и подзаголовок
-- Секции: ЗАГЛАВНЫЕ + горизонтальная линия-разделитель
-- Буллеты: синяя точка + текст с переносом
-- Шрифт DejaVu (поддержка кириллицы), устанавливается в Docker через `fonts-dejavu-core`
-- `fpdf2==2.8.1` добавлен в requirements.txt
+# Frontend в другом терминале
+cd frontend
+npm install
+npm run dev
+# http://localhost:5173 — Vite проксирует /api/* на 47821
+```
 
-## [1.2.0] — 2026-05-06
+## API
 
-### Исправлено
-- PDF был пустым: элемент не монтировался в DOM перед рендерингом html2canvas
+| Endpoint | Метод | Что делает |
+|----------|-------|------------|
+| `/health` | GET | Health check |
+| `/api/tailor` | POST | Адаптирует резюме под вакансию (OpenRouter) |
+| `/api/improve` | POST | Переписывает резюме без привязки к вакансии |
+| `/api/pdf` | POST | Рендерит PDF из markdown через LaTeX. Принимает `text`, `template`, `inline`, опционально `avatar_base64` + `avatar_shape` |
+| `/api/extract-pdf` | POST | Извлекает текст из загруженного PDF |
+| `/api/fetch-url` | POST | Скачивает текст с публичной страницы (с SSRF-защитой) |
 
-### Добавлено
-- Красивый шаблон PDF: тёмно-синяя шапка с именем, секции с разделителями, буллеты
-- Парсинг текста резюме на: имя, подзаголовки, секции (`Заголовок:`), пункты (`* ...`)
-- Обёртка монтируется в DOM off-screen (`position:fixed;left:-9999px`), удаляется после рендера
+Лимиты: `/api/tailor` 5 req/min на IP, `/api/improve` 10/min, `/api/pdf` 60/min, прочие 30/min.
 
-## [1.1.0] — 2026-05-06
+## Структура
 
-### Добавлено
-- Кнопка «Скачать PDF» (зелёная) рядом с «Скопировать»
-- Генерация PDF на стороне браузера через `html2pdf.js` (CDN)
-- Шрифт и отступы оптимизированы под A4
-- Состояние «Генерирую...» пока PDF формируется
+```
+backend/
+├── main.py                 # FastAPI, эндпоинты, парсер markdown-резюме
+├── latex/
+│   ├── render.py           # Jinja2 + tectonic, PDF-кеш
+│   ├── avatar.py           # Pillow + in-memory LRU
+│   └── escape.py           # LaTeX-эскейпинг (фильтры `tex`, `texurl`)
+├── templates/
+│   └── *.tex.j2            # 8 шаблонов резюме
+└── tests/
 
-### Статус
-- Образ собран успешно (`python:3.12-slim`)
-- Контейнер запущен, порт 8000 проброшен
-- GET `/` → HTML фронтенд ✓
-- POST `/api/tailor` → адаптированное резюме через OpenRouter ✓
-- Модель `google/gemini-2.0-flash-001` отвечает корректно
+frontend/
+├── src/
+│   ├── App.jsx
+│   ├── api.js
+│   ├── i18n.js             # RU + EN
+│   ├── components/
+│   │   ├── ResumeCard/         # Поле резюме (текст или структурированная форма)
+│   │   ├── JobCard/            # Поле вакансии + URL + PDF
+│   │   ├── PreviewCard/        # Превью PDF + TemplateDropdown
+│   │   ├── TemplateDropdown/   # Селектор шаблона + кнопка «Применить»
+│   │   ├── PhotoUpload/        # Загрузка + редактор обрезки (lazy cropper)
+│   │   ├── StructuredResumeForm/
+│   │   ├── ExpandModal/, InputExpandModal/, LinkModal/, ProfileModal/
+│   │   ├── ErrorBanner/, Navbar/, ProTip/
+│   └── utils/
+│       ├── cropImage.js    # Canvas-обрезка → JPEG dataURL
+│       └── parseResume.js
+└── vite.config.js          # proxy /api → :47821
+
+docker-compose.yml          # маппинг порта 47821:47821, .env
+Dockerfile                  # node-build → python+tectonic runtime
+.env                        # openrouter_api_key=...
+```
+
+## Порты
+
+- **Backend:** 47821 (выбран из dynamic-диапазона, чтобы не конфликтовать с типовыми dev-сервисами)
+- **Frontend (Vite dev):** 5173 (стандартный, проксирует `/api/*` на `47821`)
+- В production фронт собирается в `backend/static/` и отдаётся через FastAPI StaticFiles на том же `47821`
+
+## Производительность
+
+- LaTeX-компиляция: 4–7 с (зависит от шаблона), повторный запрос с тем же контентом → из PDF-кеша мгновенно
+- Авторепрезентация фото: Pillow первый раз ~35 мс, далее ~0.1 мс (LRU кеш по `blake2s(base64+shape)`)
+- Initial JS bundle: ~63 KB gzip; `react-easy-crop` (~7 KB gzip) вынесен в отдельный chunk и подгружается только при открытии редактора фото
+- Debounce превью: 800 мс с `AbortController` (предыдущий запрос отменяется при новом наборе)
+
+## Безопасность
+
+- Non-root пользователь в Docker (`appuser`)
+- SSRF-фильтр в `/api/fetch-url` (блокировка `localhost`, RFC1918, link-local)
+- Размерные лимиты: резюме 15 KB, вакансия 25 KB, PDF на вход 5 MB, аватар 5 MB
+- Rate-limiting через slowapi на всех `/api/*`
+- CORS включается только при `DEV_MODE=1` в `.env`

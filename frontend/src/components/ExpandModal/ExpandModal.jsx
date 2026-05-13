@@ -3,7 +3,7 @@ import { useLang } from '../../LangContext'
 import * as api from '../../api'
 import styles from './ExpandModal.module.css'
 
-export function ExpandModal({ isOpen, onClose, result, template }) {
+export function ExpandModal({ isOpen, onClose, result, template, avatar }) {
   const t = useLang()
   const [url, setUrl] = useState(null)
   const [error, setError] = useState(null)
@@ -13,7 +13,7 @@ export function ExpandModal({ isOpen, onClose, result, template }) {
     if (!isOpen || !result) return
     let cancelled = false
     setError(null)
-    api.previewPdf(result, template).then(blob => {
+    api.previewPdf(result, template, { avatar }).then(blob => {
       if (cancelled) return
       const u = URL.createObjectURL(blob)
       if (lastUrl.current) URL.revokeObjectURL(lastUrl.current)
@@ -23,7 +23,7 @@ export function ExpandModal({ isOpen, onClose, result, template }) {
       if (!cancelled) setError(e.message || 'PDF render failed')
     })
     return () => { cancelled = true }
-  }, [isOpen, result, template])
+  }, [isOpen, result, template, avatar])
 
   useEffect(() => () => {
     if (lastUrl.current) URL.revokeObjectURL(lastUrl.current)

@@ -6,7 +6,7 @@ import { ResumeCard } from './components/ResumeCard/ResumeCard'
 import { JobCard } from './components/JobCard/JobCard'
 import { ProTip } from './components/ProTip/ProTip'
 import { ErrorBanner } from './components/ErrorBanner/ErrorBanner'
-import { PreviewCard } from './components/PreviewCard/PreviewCard'
+import { PreviewCard, TEMPLATE_KEYS } from './components/PreviewCard/PreviewCard'
 import { ProfileModal } from './components/ProfileModal/ProfileModal'
 import { ExpandModal } from './components/ExpandModal/ExpandModal'
 import { InputExpandModal } from './components/InputExpandModal/InputExpandModal'
@@ -118,9 +118,12 @@ export function App() {
     education: [],
     skills: [],
   })
+  const [avatar, setAvatar] = useState(null)
   const [jobText, setJobText] = useState('')
   const [result, setResult] = useState('')
-  const [template, setTemplate] = useState('awesome')
+  const [template, setTemplate] = useState(() =>
+    TEMPLATE_KEYS.includes('awesome') ? 'awesome' : TEMPLATE_KEYS[0]
+  )
   const [isLoading, setIsLoading] = useState(false)
   const [isImproving, setIsImproving] = useState(false)
   const [elapsed, setElapsed] = useState(0)
@@ -238,7 +241,7 @@ export function App() {
   async function handleDownloadPdf() {
     if (!result) return
     try {
-      const blob = await api.downloadPdf(result, template)
+      const blob = await api.downloadPdf(result, template, avatar)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -295,6 +298,8 @@ export function App() {
               onImprove={handleImprove}
               canImprove={resumeNonEmpty}
               isImproving={isImproving}
+              avatar={avatar}
+              onAvatarChange={setAvatar}
             />
             <JobCard
               value={jobText}
@@ -321,6 +326,7 @@ export function App() {
               onExpand={() => result && setExpandOpen(true)}
               onDownloadPdf={handleDownloadPdf}
               onCopyText={handleCopyText}
+              avatar={avatar}
             />
           </div>
         </div>
@@ -331,6 +337,7 @@ export function App() {
           onClose={() => setExpandOpen(false)}
           result={result}
           template={template}
+          avatar={avatar}
         />
         <InputExpandModal
           isOpen={inputExpand.open}

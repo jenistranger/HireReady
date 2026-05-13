@@ -1,18 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLang } from '../../LangContext'
 import { EditPanel } from './EditPanel'
+import { TemplateDropdown } from '../TemplateDropdown/TemplateDropdown'
 import * as api from '../../api'
 import styles from './PreviewCard.module.css'
 
-const TEMPLATES = ['awesome', 'two_column', 'minimal', 'bold', 'executive', 'vivid']
-const TEMPLATE_LABELS = {
-  awesome: 'Awesome',
-  two_column: 'Two-Column',
-  minimal: 'Minimal',
-  bold: 'Bold',
-  executive: 'Executive',
-  vivid: 'Vivid',
-}
+export const TEMPLATE_KEYS = ['awesome', 'two_column', 'vivid', 'classic', 'engineer', 'academic', 'personal', 'hipster']
 
 export function PreviewCard({
   result,
@@ -23,10 +16,20 @@ export function PreviewCard({
   onExpand,
   onDownloadPdf,
   onCopyText,
+  avatar,
 }) {
   const t = useLang()
   const [copyLabel, setCopyLabel] = useState(null)
+  const [pendingTemplate, setPendingTemplate] = useState(template)
   const [pdfUrl, setPdfUrl] = useState(null)
+
+  useEffect(() => { setPendingTemplate(template) }, [template])
+
+  const templateOptions = useMemo(() => TEMPLATE_KEYS.map(key => ({
+    key,
+    label: t.templates[key]?.label ?? key,
+    description: t.templates[key]?.description ?? '',
+  })), [t])
   const [pdfError, setPdfError] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -53,7 +56,7 @@ export function PreviewCard({
       setRefreshing(true)
       setPdfError(null)
       try {
-        const blob = await api.previewPdf(result, template, { signal: controller.signal })
+        const blob = await api.previewPdf(result, template, { signal: controller.signal, avatar })
         const url = URL.createObjectURL(blob)
         if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current)
         lastUrlRef.current = url
@@ -69,7 +72,7 @@ export function PreviewCard({
       }
     }, 800)
     return () => clearTimeout(handle)
-  }, [result, template])
+  }, [result, template, avatar])
 
   useEffect(() => {
     // Cleanup on unmount
@@ -101,6 +104,17 @@ export function PreviewCard({
             <img src="/image/download0.png" alt="" />
           </button>
         </div>
+      </div>
+
+      <div className={styles.templateRow}>
+        <span className={styles.templateLabel}>{t.preview.template}</span>
+        <TemplateDropdown
+          value={template}
+          pending={pendingTemplate}
+          onPendingChange={setPendingTemplate}
+          onApply={() => onTemplateChange(pendingTemplate)}
+          options={templateOptions}
+        />
       </div>
 
       <div className={styles.previewBody}>
@@ -135,20 +149,6 @@ export function PreviewCard({
       </div>
 
       <div className={styles.footer}>
-        <div className={styles.templateRow}>
-          <span className={styles.templateLabel}>{t.preview.template}</span>
-          <div className={styles.templateSelector}>
-            {TEMPLATES.map(tpl => (
-              <button
-                key={tpl}
-                className={`btn-tpl${template === tpl ? ' active' : ''}`}
-                onClick={() => onTemplateChange(tpl)}
-              >
-                {TEMPLATE_LABELS[tpl] ?? tpl}
-              </button>
-            ))}
-          </div>
-        </div>
         <div className={styles.footerActions}>
           <button className="btn-download" disabled={!result} onClick={onDownloadPdf}>
             <img src="/image/download.png" alt="" />

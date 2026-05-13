@@ -1,0 +1,136 @@
+<# Academic (CurVe-inspired): serious serif, framed photo top-right, period-prefixed entries. #>
+\documentclass[a4paper,10.5pt]{article}
+
+\usepackage{fontspec}
+\usepackage[a4paper,top=18mm,bottom=18mm,left=22mm,right=22mm]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fontawesome5}
+\usepackage[hidelinks]{hyperref}
+\usepackage{etoolbox}
+\usepackage{tabularx}
+\usepackage{graphicx}
+
+\setmainfont{DejaVu Serif}[Scale=0.92]
+\newfontfamily\acsansfont{DejaVu Sans}[Scale=0.85]
+\let\acsans\acsansfont
+\newfontfamily\smallcaps{DejaVu Sans}[Scale=0.78,LetterSpace=6]
+
+\definecolor{ink}{HTML}{111111}
+\definecolor{muted}{HTML}{555555}
+\definecolor{rule}{HTML}{B8B8B8}
+\definecolor{accent}{HTML}{6D2331}
+
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\linespread{1.28}
+
+\titleformat{\section}
+  {\smallcaps\bfseries\small\color{accent}}
+  {}{0pt}{\MakeUppercase}[\vspace{-2pt}\textcolor{rule}{\rule{\linewidth}{0.4pt}}]
+\titlespacing*{\section}{0pt}{14pt}{6pt}
+
+\setlist[itemize]{leftmargin=12pt,itemsep=1.5pt,topsep=2pt,parsep=0pt,label={\color{accent}\textendash}}
+
+\newlength{\acdate}
+\setlength{\acdate}{30mm}
+
+\newcommand{\acrow}[5]{%
+  \noindent
+  \begin{tabularx}{\linewidth}{@{}p{\acdate}@{\hspace{4mm}}X@{}}
+    \raggedright{\acsans\small\color{muted}#1} &
+    {\bfseries\color{ink}#2}\ifstrempty{#3}{}{,\ {\itshape\color{muted}#3}}%
+    \ifstrempty{#4}{}{\par{\itshape\small\color{muted}#4}}%
+    \ifstrempty{#5}{}{\par #5}%
+  \end{tabularx}\par\vspace{3pt}
+}
+
+\begin{document}
+
+% Header: name+contacts left, photo right
+\noindent
+\begin{minipage}[t]{<% if avatar_path %>0.7\linewidth<% else %>\linewidth<% endif %>}
+\vspace{0pt}
+<% if name %>{\bfseries\fontsize{22}{26}\selectfont\color{ink}<< name | tex >>}\par<% endif %>
+<% if headline %>\vspace{3pt}{\itshape\large\color{muted}<< headline | tex >>}\par<% endif %>
+\vspace{6pt}
+<% if emails or phones or links or other_contacts %>
+{\acsans\small\color{ink}%
+<% set rows = [] %>
+<% for e in emails %><% set _ = rows.append('\\faEnvelope[regular]\\;\\texttt{' + (e | tex) + '}') %><% endfor %>
+<% for p in phones %><% set _ = rows.append('\\faPhone\\;\\texttt{' + (p | tex) + '}') %><% endfor %>
+<% for l in links %><% set _ = rows.append('\\faGlobe\\;\\texttt{' + (l | tex) + '}') %><% endfor %>
+<% for c in other_contacts %><% set _ = rows.append('\\faMapMarker*\\;' + (c | tex)) %><% endfor %>
+<< rows | join('\\quad{}') >>%
+}\par
+<% endif %>
+\end{minipage}%
+<% if avatar_path %>%
+\hfill\begin{minipage}[t]{0.24\linewidth}
+\vspace{0pt}
+\raggedleft\setlength{\fboxsep}{2pt}\setlength{\fboxrule}{0.4pt}%
+\fbox{\includegraphics[width=26mm]{<< avatar_path >>}}
+\end{minipage}%
+<% endif %>
+\vspace{4pt}
+\textcolor{rule}{\rule{\linewidth}{0.4pt}}
+
+<% if summary %>
+\section*{Profile}
+{\color{ink}<< summary | tex >>}
+<% endif %>
+
+<% if experience %>
+\section*{Employment}
+<% for e in experience %>
+\acrow{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
+<% if e.description %>{\small\color{ink}<< e.description | tex >>}\par<% endif %>%
+<% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item << b | tex >><% endfor %>\end{itemize}<% endif %>%
+}
+<% endfor %>
+<% endif %>
+
+<% if education %>
+\section*{Education}
+<% for e in education %>
+\acrow{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
+<% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item << b | tex >><% endfor %>\end{itemize}<% endif %>%
+}
+<% endfor %>
+<% endif %>
+
+<% if projects %>
+\section*{Projects}
+<% for e in projects %>
+\acrow{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
+<% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item << b | tex >><% endfor %>\end{itemize}<% endif %>%
+}
+<% endfor %>
+<% endif %>
+
+<% if skills %>
+\section*{Skills}
+<% for s in skills %>
+<% if s.label %>{\bfseries\color{ink}<< s.label | tex >>:}\quad <% endif %>{\color{ink}<< s.value | tex >>}\par\vspace{2pt}
+<% endfor %>
+<% endif %>
+
+<% if languages %>
+\section*{Languages}
+{\color{ink}<< languages | tex >>}
+<% endif %>
+
+<% for sec in other_sections %>
+\section*{<< sec.title | tex >>}
+<% if sec.content %>{\color{ink}<< sec.content | tex >>}<% endif %>
+<% if sec.entries %>
+<% for e in sec.entries %>
+\acrow{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
+<% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item << b | tex >><% endfor %>\end{itemize}<% endif %>%
+}
+<% endfor %>
+<% endif %>
+<% endfor %>
+
+\end{document}

@@ -1,0 +1,156 @@
+<# Hipster (simple-hipster-inspired): two-column paracol, pills for skills, bubble contacts. #>
+\documentclass[a4paper,10pt]{article}
+
+\usepackage{fontspec}
+\usepackage[a4paper,top=12mm,bottom=12mm,left=10mm,right=10mm]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fontawesome5}
+\usepackage{paracol}
+\usepackage[hidelinks]{hyperref}
+\usepackage{etoolbox}
+\usepackage{tcolorbox}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{tabularx}
+
+\tcbuselibrary{skins}
+
+\setmainfont{DejaVu Sans}[Scale=0.92]
+\newfontfamily\headingfont{DejaVu Sans}[Scale=1.0]
+
+\definecolor{cvgreen}{HTML}{1B998B}
+\definecolor{cvred}{HTML}{D7263D}
+\definecolor{ink}{HTML}{1A1A1A}
+\definecolor{muted}{HTML}{5A5A5A}
+\definecolor{sideBg}{HTML}{F6F4EE}
+\definecolor{pillBg}{HTML}{E5F4F1}
+
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\linespread{1.2}
+
+\columnratio{0.28}
+\setlength{\columnsep}{6mm}
+
+\titleformat{\section}
+  {\headingfont\bfseries\small\color{cvgreen}}
+  {}{0pt}{\MakeUppercase}[\vspace{-1pt}\textcolor{cvgreen}{\rule{30pt}{1.5pt}}]
+\titlespacing*{\section}{0pt}{12pt}{4pt}
+
+\setlist[itemize]{leftmargin=12pt,itemsep=1pt,topsep=1pt,parsep=0pt,label={\textcolor{cvred}{\small$\bullet$}}}
+
+\newcommand{\pill}[1]{\tcbox[on line,boxrule=0.3pt,boxsep=0pt,arc=4pt,top=2pt,bottom=2pt,left=6pt,right=6pt,colback=pillBg,colframe=cvgreen!40,coltext=cvgreen]{\small\bfseries #1}}
+
+\newcommand{\bubble}[2]{%
+  \noindent\tikz[baseline=-2pt]\draw[fill=cvgreen,draw=cvgreen] (0,0) circle (4pt) node[white,font=\tiny]{#1};\;\small #2\par\vspace{2pt}%
+}
+
+\newcommand{\hipevent}[5]{%
+  \noindent{\bfseries\color{ink}#2}\hfill{\small\color{cvgreen}\bfseries #1}\par
+  \ifstrempty{#3}{}{{\itshape\color{muted}\small #3}\hfill\ifstrempty{#4}{}{{\color{muted}\small\faMapMarker*~#4}}\par}
+  \ifstrempty{#5}{}{\vspace{1pt}#5}\vspace{4pt}%
+}
+
+\begin{document}
+
+\begin{paracol}{2}
+\backgroundcolor{c[0]}{sideBg}
+
+% ── Left column ──
+\color{ink}
+\setlength{\leftskip}{4mm}\setlength{\rightskip}{4mm}
+\vspace{4mm}
+
+<% if avatar_path %>
+\begin{center}\includegraphics[width=32mm]{<< avatar_path >>}\end{center}
+\vspace{6pt}
+<% endif %>
+
+<% if name %>
+\begin{center}
+{\headingfont\bfseries\fontsize{18}{20}\selectfont\color{ink}<< name | tex >>}\par
+<% if headline %>\vspace{2pt}{\small\color{cvgreen}<< headline | tex >>}\par<% endif %>
+\end{center}
+<% endif %>
+
+<% if summary %>
+\section*{About}
+{\small\color{ink}<< summary | tex >>}
+<% endif %>
+
+<% if emails or phones or links or other_contacts %>
+\section*{Contact}
+<% for p in phones %>\bubble{\faPhone}{\texttt{<< p | tex >>}}<% endfor %>
+<% for e in emails %>\bubble{\faAt}{\texttt{<< e | tex >>}}<% endfor %>
+<% for l in links %>\bubble{\faGlobe}{\texttt{<< l | tex >>}}<% endfor %>
+<% for c in other_contacts %>\bubble{\faMapMarker*}{<< c | tex >>}<% endfor %>
+<% endif %>
+
+<% if skills %>
+\section*{Skills}
+<% for s in skills %>
+<% if s.label %>{\color{cvgreen}\bfseries\small\MakeUppercase{<< s.label | tex >>}}\par\vspace{3pt}<% endif %>
+<% for v in (s.value or '').split(',') %><% if v.strip() %>\pill{<< v.strip() | tex >>}\enspace<% endif %><% endfor %>
+\par\vspace{6pt}
+<% endfor %>
+<% endif %>
+
+<% if languages %>
+\section*{Languages}
+{\small\color{ink}<< languages | tex >>}
+<% endif %>
+
+\vfill
+
+\switchcolumn
+
+% ── Right column ──
+\color{ink}
+\setlength{\leftskip}{2mm}\setlength{\rightskip}{2mm}
+\vspace{4mm}
+
+<% if experience %>
+\section*{Experience}
+<% for e in experience %>
+\hipevent{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
+<% if e.description %>{\small\color{muted}<< e.description | tex >>}\par<% endif %>%
+<% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item \small << b | tex >><% endfor %>\end{itemize}<% endif %>%
+}
+<% endfor %>
+<% endif %>
+
+<% if projects %>
+\section*{Projects}
+<% for e in projects %>
+\hipevent{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
+<% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item \small << b | tex >><% endfor %>\end{itemize}<% endif %>%
+}
+<% endfor %>
+<% endif %>
+
+<% if education %>
+\section*{Education}
+<% for e in education %>
+\hipevent{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
+<% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item \small << b | tex >><% endfor %>\end{itemize}<% endif %>%
+}
+<% endfor %>
+<% endif %>
+
+<% for sec in other_sections %>
+\section*{<< sec.title | tex >>}
+<% if sec.content %>{\small\color{ink}<< sec.content | tex >>}<% endif %>
+<% if sec.entries %>
+<% for e in sec.entries %>
+\hipevent{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
+<% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item \small << b | tex >><% endfor %>\end{itemize}<% endif %>%
+}
+<% endfor %>
+<% endif %>
+<% endfor %>
+
+\end{paracol}
+
+\end{document}

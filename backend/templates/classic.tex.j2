@@ -1,0 +1,140 @@
+<# Classic (ModernCV-inspired): cyan accent bar with name, hanging dates left, content right. #>
+\documentclass[a4paper,10.5pt]{article}
+
+\usepackage{fontspec}
+\usepackage[a4paper,top=18mm,bottom=18mm,left=20mm,right=20mm]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fontawesome5}
+\usepackage[hidelinks]{hyperref}
+\usepackage{etoolbox}
+\usepackage{tabularx}
+\usepackage{graphicx}
+
+\setmainfont{DejaVu Sans}[Scale=0.95]
+\newfontfamily\headingfont{DejaVu Sans}[Scale=1.0]
+
+\definecolor{mcvblue}{HTML}{3873B3}
+\definecolor{ink}{HTML}{1A1A1A}
+\definecolor{muted}{HTML}{5A5A5A}
+\definecolor{rule}{HTML}{D5DCE4}
+
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\linespread{1.2}
+
+\titleformat{\section}
+  {\headingfont\bfseries\large\color{mcvblue}}
+  {}{0pt}{}[\vspace{-2pt}\textcolor{mcvblue}{\rule{\linewidth}{0.6pt}}]
+\titlespacing*{\section}{0pt}{14pt}{6pt}
+
+\setlist[itemize]{leftmargin=14pt,itemsep=1.5pt,topsep=2pt,parsep=0pt,label={\textcolor{mcvblue}{\small$\bullet$}}}
+
+% Entry row: <date> | <bold heading> + <muted subtitle> + <description> + bullets
+\newlength{\datecolwidth}
+\setlength{\datecolwidth}{32mm}
+
+\newcommand{\entryrow}[5]{%
+  \noindent
+  \begin{tabularx}{\linewidth}{@{}p{\datecolwidth}@{\hspace{4mm}}X@{}}
+    \raggedright\color{muted}\small #1 &
+    {\bfseries\color{ink}#2}\ifstrempty{#3}{}{\,{\color{muted}\small$\cdot$\ #3}}%
+    \ifstrempty{#4}{}{\par\textcolor{muted}{\small\faMapMarker*~#4}}%
+    \ifstrempty{#5}{}{\par #5}%
+  \end{tabularx}\par\vspace{3pt}
+}
+
+\begin{document}
+
+% Header band
+\noindent
+\begin{minipage}[c]{<% if avatar_path %>0.7\linewidth<% else %>\linewidth<% endif %>}
+<% if name %>{\headingfont\bfseries\fontsize{26}{28}\selectfont\color{ink}<< name | tex >>}\par<% endif %>
+<% if headline %>\vspace{4pt}{\large\color{mcvblue}<< headline | tex >>}\par<% endif %>
+\vspace{6pt}
+{\color{mcvblue}\rule{60pt}{2pt}}\par
+\vspace{6pt}
+<% if emails or phones or links or other_contacts %>
+{\small\color{muted}%
+<% set parts = [] %>
+<% for e in emails %><% set _ = parts.append('\\faEnvelope~~' + (e | tex)) %><% endfor %>
+<% for p in phones %><% set _ = parts.append('\\faPhone~~' + (p | tex)) %><% endfor %>
+<% for l in links %><% set _ = parts.append('\\faGlobe~~' + (l | tex)) %><% endfor %>
+<% for c in other_contacts %><% set _ = parts.append('\\faMapMarker*~~' + (c | tex)) %><% endfor %>
+<< parts | join('  \\quad ') >>%
+}\par
+<% endif %>
+\end{minipage}%
+<% if avatar_path %>%
+\hfill\begin{minipage}[c]{0.25\linewidth}
+\raggedleft\includegraphics[width=28mm]{<< avatar_path >>}
+\end{minipage}%
+<% endif %>
+\vspace{6pt}
+\textcolor{rule}{\rule{\linewidth}{0.6pt}}
+
+<% if summary %>
+\section*{Profile}
+{\color{ink}<< summary | tex >>}
+<% endif %>
+
+<% if experience %>
+\section*{Experience}
+<% for e in experience %>
+\entryrow{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
+<% if e.description %>{\small\color{muted}<< e.description | tex >>}\par<% endif %>%
+<% if e.bullets %>%
+\begin{itemize}%
+<% for b in e.bullets %>\item << b | tex >><% endfor %>%
+\end{itemize}%
+<% endif %>%
+}
+<% endfor %>
+<% endif %>
+
+<% if projects %>
+\section*{Projects}
+<% for e in projects %>
+\entryrow{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
+<% if e.bullets %>%
+\begin{itemize}%
+<% for b in e.bullets %>\item << b | tex >><% endfor %>%
+\end{itemize}%
+<% endif %>%
+}
+<% endfor %>
+<% endif %>
+
+<% if education %>
+\section*{Education}
+<% for e in education %>
+\entryrow{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{}
+<% endfor %>
+<% endif %>
+
+<% if skills %>
+\section*{Skills}
+<% for s in skills %>
+\entryrow{<% if s.label %><< s.label | tex >><% endif %>}{}{}{}{{\color{ink}<< s.value | tex >>}}
+<% endfor %>
+<% endif %>
+
+<% if languages %>
+\section*{Languages}
+{\color{ink}<< languages | tex >>}
+<% endif %>
+
+<% for sec in other_sections %>
+\section*{<< sec.title | tex >>}
+<% if sec.content %>{\color{ink}<< sec.content | tex >>}<% endif %>
+<% if sec.entries %>
+<% for e in sec.entries %>
+\entryrow{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
+<% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item << b | tex >><% endfor %>\end{itemize}<% endif %>%
+}
+<% endfor %>
+<% endif %>
+<% endfor %>
+
+\end{document}

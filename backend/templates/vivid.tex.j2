@@ -11,6 +11,7 @@
 \usepackage{etoolbox}
 \usepackage{tikz}
 \usepackage{tcolorbox}
+\usepackage{graphicx}
 
 \tcbuselibrary{skins}
 
@@ -41,9 +42,10 @@
 % Gradient header
 \noindent\begin{tikzpicture}[remember picture, overlay]
 \shade[left color=purple, right color=pink] (current page.north west) rectangle ([yshift=-48mm]current page.north east);
+<% if avatar_path %>\node[anchor=north east, inner sep=0pt] at ([xshift=-20mm, yshift=-8mm]current page.north east) {\includegraphics[width=32mm]{<< avatar_path >>}};<% endif %>
 \end{tikzpicture}
 \vspace*{10mm}
-\begin{minipage}[t]{\linewidth}
+\begin{minipage}[t]{<% if avatar_path %>\dimexpr\linewidth-38mm\relax<% else %>\linewidth<% endif %>}
 \color{white}
 <% if name %>{\heavy\bfseries\fontsize{30}{32}\selectfont\color{white} << name | tex >>}\par<% endif %>
 <% if headline %>\vspace{3pt}{\large\color{white} << headline | tex >>}\par<% endif %>

@@ -20,13 +20,14 @@ from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from .avatar import prepare_avatar
 from .escape import latex_escape, latex_url
 
 logger = logging.getLogger("resume_tailor.latex")
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 
-TEMPLATES = ["awesome", "two_column", "minimal", "bold", "executive", "vivid"]
+TEMPLATES = ["awesome", "two_column", "vivid", "classic", "engineer", "academic", "personal", "hipster"]
 
 _DEFAULT_TEMPLATE = "awesome"
 
@@ -93,16 +94,18 @@ def _get_env() -> Environment:
 # types without re-running tectonic for the same content. Cap is small — the
 # PDF is just a few hundred KB.
 
-_CACHE_TTL_SEC = 300
-_CACHE_MAX = 32
+_CACHE_TTL_SEC = 1800
+_CACHE_MAX = 128
 _pdf_cache: dict[str, tuple[float, bytes]] = {}
 
 
-def _cache_key(text: str, template: str) -> str:
-    h = hashlib.sha1()
+def _cache_key(text: str, template: str, avatar_fingerprint: str = "") -> str:
+    h = hashlib.blake2s(digest_size=20)
     h.update(template.encode("utf-8"))
     h.update(b"\0")
     h.update(text.encode("utf-8"))
+    h.update(b"\0")
+    h.update(avatar_fingerprint.encode("utf-8"))
     return h.hexdigest()
 
 
@@ -133,7 +136,7 @@ def _resolve_template(name: str) -> str:
     return _DEFAULT_TEMPLATE
 
 
-def _build_context(data: dict) -> dict:
+def _build_context(data: dict, avatar_filename: Optional[str] = None) -> dict:
     """Normalize parsed-resume dict into something the templates can iterate
     over without conditional gymnastics in TeX."""
     header = data.get("header", {}) or {}
@@ -213,14 +216,15 @@ def _build_context(data: dict) -> dict:
         "languages": languages,
         "other_sections": other_sections,
         "raw_sections": sections,
+        "avatar_path": avatar_filename,
     }
 
 
-def render_latex(data: dict, template: str) -> str:
+def render_latex(data: dict, template: str, avatar_filename: Optional[str] = None) -> str:
     tpl_name = _resolve_template(template)
     env = _get_env()
     tpl = env.get_template(f"{tpl_name}.tex.j2")
-    ctx = _build_context(data)
+    ctx = _build_context(data, avatar_filename=avatar_filename)
     return tpl.render(**ctx)
 
 
@@ -256,19 +260,37 @@ def _run_compiler(tex_source: str, work_dir: Path) -> Path:
     return pdf_path
 
 
-def compile_pdf(parsed: dict, template: str) -> bytes:
+def compile_pdf(
+    parsed: dict,
+    template: str,
+    avatar_base64: Optional[str] = None,
+    avatar_shape: str = "circle",
+) -> bytes:
     """Render parsed resume data through the chosen template, then compile to PDF."""
     tpl_name = _resolve_template(template)
-    # We hash the rendered TeX, not the markdown, so equivalent inputs that
-    # produce identical TeX share a cache entry.
-    tex_source = render_latex(parsed, tpl_name)
-    key = _cache_key(tex_source, tpl_name)
+
+    has_avatar = bool(avatar_base64)
+    avatar_filename = None
+    avatar_fingerprint = ""
+    if has_avatar:
+        avatar_filename = "avatar.png" if avatar_shape == "circle" else "avatar.jpg"
+        fp = hashlib.blake2s(digest_size=16)
+        fp.update(avatar_shape.encode("utf-8"))
+        fp.update(b"\0")
+        fp.update(avatar_base64.encode("ascii", errors="ignore"))
+        avatar_fingerprint = fp.hexdigest()
+
+    tex_source = render_latex(parsed, tpl_name, avatar_filename=avatar_filename)
+    key = _cache_key(tex_source, tpl_name, avatar_fingerprint)
     cached = _cache_get(key)
     if cached is not None:
         return cached
 
     with tempfile.TemporaryDirectory(prefix="resume-tex-") as td:
         work = Path(td)
+        if has_avatar:
+            # AvatarError (subclass of ValueError) propagates; main.py converts it to HTTP 400.
+            prepare_avatar(avatar_base64, avatar_shape, work)
         pdf_path = _run_compiler(tex_source, work)
         pdf_bytes = pdf_path.read_bytes()
     _cache_put(key, pdf_bytes)
