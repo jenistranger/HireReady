@@ -11,13 +11,13 @@
 }
 
 .title {
-  font-size: 15px; font-family: "Plus Jakarta Sans-SemiBold"; color: rgba(30,30,30,1);
+  font-size: 15px; font-family: var(--ui-font); color: rgba(30,30,30,1);
 }
 
 .input {
   width: 100%; height: 40px; border-radius: 8px;
   border: 1px solid rgba(226,230,238,1);
-  padding: 0 12px; font-size: 13px; font-family: "Plus Jakarta Sans-Regular";
+  padding: 0 12px; font-size: 13px; font-family: var(--ui-font);
   outline: none; background: rgba(248,249,251,1);
   transition: border-color 0.15s;
 }
@@ -28,12 +28,12 @@
 .cancelBtn {
   height: 36px; padding: 0 16px; border-radius: 8px; cursor: pointer;
   border: 1px solid rgba(226,230,238,1); background: transparent;
-  font-size: 13px; font-family: "Plus Jakarta Sans-SemiBold"; color: rgba(138,143,158,1);
+  font-size: 13px; font-family: var(--ui-font); color: rgba(138,143,158,1);
 }
 
 .fetchBtn {
   height: 36px; padding: 0 16px; border-radius: 8px; cursor: pointer;
   border: none; background: var(--accent);
-  font-size: 13px; font-family: "Plus Jakarta Sans-SemiBold"; color: white;
+  font-size: 13px; font-family: var(--ui-font); color: white;
 }
 .fetchBtn:disabled { opacity: 0.65; cursor: not-allowed; }

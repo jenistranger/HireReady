@@ -56,7 +56,7 @@
   position: absolute; top: 10px; right: 10px;
   padding: 4px 10px; border-radius: 10px;
   background: rgba(59,111,232,0.92); color: white;
-  font-size: 11px; font-family: "Plus Jakarta Sans-SemiBold", sans-serif;
+  font-size: 11px; font-family: var(--ui-font);
   display: flex; align-items: center; gap: 6px;
   pointer-events: none;
 }
@@ -99,7 +99,7 @@
 }
 
 .loadingState span {
-  font-size: 13px; font-family: "Plus Jakarta Sans-Regular"; color: rgba(138,143,158,1);
+  font-size: 13px; font-family: var(--ui-font); color: rgba(138,143,158,1);
 }
 
 .errorState {
@@ -124,7 +124,7 @@
 }
 
 .templateLabel {
-  font-size: 11px; font-family: "Plus Jakarta Sans-SemiBold";
+  font-size: 11px; font-family: var(--ui-font);
   letter-spacing: 1px; color: rgba(138,143,158,1); flex-shrink: 0;
   align-self: center;
 }

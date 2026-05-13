@@ -10,8 +10,8 @@ export function Navbar({ onProfileOpen, lang, onLangToggle }) {
       <div className={styles.navbar}>
         <div className={styles.content}>
           <div className={styles.logo}>
-            <div className={styles.logoSquare}></div>
-            <div className={styles.logoBar}></div>
+            <img className={styles.logoSquare} src="/icon.svg" alt="hireslop.xyz" />
+            <div className={styles.logoBar}>hireslop.xyz</div>
           </div>
           <div className={styles.spacer}></div>
           <button className="btn-lang" onClick={onLangToggle}>{langLabel}</button>
