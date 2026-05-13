@@ -144,7 +144,12 @@ export function PreviewCard({
         </div>
 
         {showResult && onResultChange && (
-          <EditPanel result={result} onChange={onResultChange} />
+          <EditPanel
+            result={result}
+            onChange={onResultChange}
+            renderError={pdfError}
+            refreshing={refreshing}
+          />
         )}
       </div>
 

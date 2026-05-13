@@ -23,6 +23,22 @@
 }
 .input:focus { border-color: var(--accent); }
 
+.hint {
+  margin-top: -8px;
+  font-size: 12px;
+  line-height: 1.4;
+  font-family: var(--ui-font);
+  color: rgba(138,143,158,1);
+}
+
+.error {
+  margin-top: -8px;
+  font-size: 12px;
+  line-height: 1.4;
+  font-family: var(--ui-font);
+  color: rgba(220,38,38,0.95);
+}
+
 .footer { display: flex; gap: 10px; justify-content: flex-end; }
 
 .cancelBtn {

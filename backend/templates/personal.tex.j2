@@ -63,12 +63,13 @@
 \raggedleft
 <% if name %>{\bfseries\fontsize{30}{34}\selectfont\color{ink}<< name | tex >>}\par<% endif %>
 <% if headline %>\vspace{2pt}{\Large\itshape\color{muted}<< headline | tex >>}\par<% endif %>
+<% if salary_expectation %>\vspace{3pt}{\small\color{muted}<< salary_label | tex >>: << salary_expectation | tex >>}\par<% endif %>
 \end{minipage}
 \vspace{8pt}\par
 \textcolor{rule}{\rule{\linewidth}{0.4pt}}
 
 <% if emails or phones or links or other_contacts %>
-\section*{Personal Details}
+\section*{<< labels.personal_details | tex >>}
 <% for p in phones %>\detailrow{Phone}{\texttt{<< p | tex >>}}<% endfor %>
 <% for e in emails %>\detailrow{Email}{\texttt{<< e | tex >>}}<% endfor %>
 <% for l in links %>\detailrow{Link}{\texttt{<< l | tex >>}}<% endfor %>
@@ -76,12 +77,12 @@
 <% endif %>
 
 <% if summary %>
-\section*{Profile}
+\section*{<< labels.profile | tex >>}
 {\color{ink}<< summary | tex >>}
 <% endif %>
 
 <% if experience %>
-\section*{Experience}
+\section*{<< labels.experience | tex >>}
 <% for e in experience %>
 \personalentry{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
 <% if e.description %>{\small\color{muted}<< e.description | tex >>}\par<% endif %>%
@@ -91,7 +92,7 @@
 <% endif %>
 
 <% if projects %>
-\section*{Projects}
+\section*{<< labels.projects | tex >>}
 <% for e in projects %>
 \personalentry{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
 <% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item << b | tex >><% endfor %>\end{itemize}<% endif %>%
@@ -100,21 +101,21 @@
 <% endif %>
 
 <% if education %>
-\section*{Education}
+\section*{<< labels.education | tex >>}
 <% for e in education %>
 \personalentry{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{}
 <% endfor %>
 <% endif %>
 
 <% if skills %>
-\section*{Technical Skills}
+\section*{<< labels.technical_skills | tex >>}
 <% for s in skills %>
 <% if s.label %>\detailrow{<< s.label | tex >>}{<< s.value | tex >>}<% else %>\noindent{\color{ink}<< s.value | tex >>}\par<% endif %>
 <% endfor %>
 <% endif %>
 
 <% if languages %>
-\section*{Languages}
+\section*{<< labels.languages | tex >>}
 {\color{ink}<< languages | tex >>}
 <% endif %>
 

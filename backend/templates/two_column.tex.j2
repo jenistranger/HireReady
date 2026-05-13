@@ -60,10 +60,11 @@
 <% if name %>
 {\bfseries\fontsize{18}{20}\selectfont << name | tex >>}\par
 <% if headline %>\vspace{3pt}{\color{sideMuted}<< headline | tex >>}\par<% endif %>
+<% if salary_expectation %>\vspace{3pt}{\small\color{sideMuted}<< salary_label | tex >>: << salary_expectation | tex >>}\par<% endif %>
 <% endif %>
 
 <% if emails or phones or links or other_contacts %>
-\sideSection{Contact}
+\sideSection{<< labels.contact | tex >>}
 {\small\color{sideText}
 <% for c in other_contacts %>\faMapMarker*~~<< c | tex >>\par<% endfor %>
 <% for p in phones %>\faPhone~~<< p | tex >>\par<% endfor %>
@@ -73,7 +74,7 @@
 <% endif %>
 
 <% if skills %>
-\sideSection{Skills}
+\sideSection{<< labels.skills | tex >>}
 {\small
 <% for s in skills %>
 <% if s.label %>{\color{accent}\bfseries << s.label | tex >>}\par<% endif %>
@@ -83,7 +84,7 @@
 <% endif %>
 
 <% if education %>
-\sideSection{Education}
+\sideSection{<< labels.education | tex >>}
 {\small
 <% for e in education %>
 {\bfseries\color{sideText}<< e.title | tex >>}\par
@@ -95,7 +96,7 @@
 <% endif %>
 
 <% if languages %>
-\sideSection{Languages}
+\sideSection{<< labels.languages | tex >>}
 {\small\color{sideText}<< languages | tex >>}
 <% endif %>
 
@@ -109,12 +110,12 @@
 \vspace{16pt}
 
 <% if summary %>
-\mainSection{Profile}
+\mainSection{<< labels.profile | tex >>}
 << summary | tex >>
 <% endif %>
 
 <% if experience %>
-\mainSection{Experience}
+\mainSection{<< labels.experience | tex >>}
 <% for e in experience %>
 {\bfseries\color{ink}<< e.title | tex >>}<% if e.subtitle %> \,{\color{accent}\textbullet}\, <% endif %>{\color{muted}<< e.subtitle | tex >>}\hfill{\color{muted}\small << e.period | tex >>}\par
 <% if e.location %>{\color{muted}\small\faMapMarker*~<< e.location | tex >>}\par<% endif %>
@@ -130,7 +131,7 @@
 <% endif %>
 
 <% if projects %>
-\mainSection{Projects}
+\mainSection{<< labels.projects | tex >>}
 <% for e in projects %>
 {\bfseries\color{ink}<< e.title | tex >>}<% if e.subtitle %> \,{\color{accent}\textbullet}\, <% endif %>{\color{muted}<< e.subtitle | tex >>}\hfill{\color{muted}\small << e.period | tex >>}\par
 <% if e.bullets %>

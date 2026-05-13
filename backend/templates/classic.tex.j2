@@ -52,6 +52,7 @@
 \begin{minipage}[c]{<% if avatar_path %>0.7\linewidth<% else %>\linewidth<% endif %>}
 <% if name %>{\headingfont\bfseries\fontsize{26}{28}\selectfont\color{ink}<< name | tex >>}\par<% endif %>
 <% if headline %>\vspace{4pt}{\large\color{mcvblue}<< headline | tex >>}\par<% endif %>
+<% if salary_expectation %>\vspace{3pt}{\small\color{muted}<< salary_label | tex >>: << salary_expectation | tex >>}\par<% endif %>
 \vspace{6pt}
 {\color{mcvblue}\rule{60pt}{2pt}}\par
 \vspace{6pt}
@@ -75,12 +76,12 @@
 \textcolor{rule}{\rule{\linewidth}{0.6pt}}
 
 <% if summary %>
-\section*{Profile}
+\section*{<< labels.profile | tex >>}
 {\color{ink}<< summary | tex >>}
 <% endif %>
 
 <% if experience %>
-\section*{Experience}
+\section*{<< labels.experience | tex >>}
 <% for e in experience %>
 \entryrow{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
 <% if e.description %>{\small\color{muted}<< e.description | tex >>}\par<% endif %>%
@@ -94,7 +95,7 @@
 <% endif %>
 
 <% if projects %>
-\section*{Projects}
+\section*{<< labels.projects | tex >>}
 <% for e in projects %>
 \entryrow{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
 <% if e.bullets %>%
@@ -107,21 +108,21 @@
 <% endif %>
 
 <% if education %>
-\section*{Education}
+\section*{<< labels.education | tex >>}
 <% for e in education %>
 \entryrow{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{}
 <% endfor %>
 <% endif %>
 
 <% if skills %>
-\section*{Skills}
+\section*{<< labels.skills | tex >>}
 <% for s in skills %>
 \entryrow{<% if s.label %><< s.label | tex >><% endif %>}{}{}{}{{\color{ink}<< s.value | tex >>}}
 <% endfor %>
 <% endif %>
 
 <% if languages %>
-\section*{Languages}
+\section*{<< labels.languages | tex >>}
 {\color{ink}<< languages | tex >>}
 <% endif %>
 

@@ -2,9 +2,10 @@ import { useRef } from 'react'
 import { useLang } from '../../LangContext'
 import { StructuredResumeForm } from '../StructuredResumeForm/StructuredResumeForm'
 import { PhotoUpload } from '../PhotoUpload/PhotoUpload'
+import { PdfFileCard } from '../PdfFileCard/PdfFileCard'
 import styles from './ResumeCard.module.css'
 
-const MAX_LEN = 3000
+const MAX_LEN = 4000
 
 export function ResumeCard({
   value,
@@ -18,8 +19,11 @@ export function ResumeCard({
   onImprove,
   canImprove,
   isImproving,
+  elapsed,
   avatar,
   onAvatarChange,
+  pdfFile,
+  onClearPdf,
 }) {
   const t = useLang()
   const fileRef = useRef(null)
@@ -36,7 +40,7 @@ export function ResumeCard({
       <div className="card-inner">
         <div className="card-label-row">
           <p className="section-label">{t.resume.title}</p>
-          {mode === 'text' && (
+          {mode === 'text' && !pdfFile && (
             <button className="icon-btn icon-btn-sm" onClick={onExpand}>
               <img src="/image/maximize2.png" alt="" />
             </button>
@@ -66,22 +70,33 @@ export function ResumeCard({
 
         {mode === 'text' ? (
           <>
-            <div className="textarea-box">
-              <textarea
-                className={styles.textarea}
-                value={value}
-                onChange={e => onChange(e.target.value)}
-                maxLength={MAX_LEN}
-                placeholder={t.resume.placeholder}
+            {pdfFile ? (
+              <PdfFileCard
+                file={pdfFile}
+                labels={t.pdfFile}
+                onReplace={() => fileRef.current?.click()}
+                onClear={onClearPdf}
               />
-            </div>
-            <div className="counter-row">
-              <p className="counter">{value.length} / {MAX_LEN}</p>
-              <button className="btn-clear" onClick={() => onChange('')}>{t.resume.clear}</button>
-            </div>
+            ) : (
+              <>
+                <div className="textarea-box">
+                  <textarea
+                    className={styles.textarea}
+                    value={value}
+                    onChange={e => onChange(e.target.value)}
+                    maxLength={MAX_LEN}
+                    placeholder={t.resume.placeholder}
+                  />
+                </div>
+                <div className="counter-row">
+                  <p className="counter">{value.length} / {MAX_LEN}</p>
+                  <button className="btn-clear" onClick={() => onChange('')}>{t.resume.clear}</button>
+                </div>
+              </>
+            )}
             <button className="btn-outline" onClick={() => fileRef.current?.click()}>
               <img src="/image/upload0.png" alt="" />
-              <span>{t.resume.uploadPdf}</span>
+              <span>{pdfFile ? t.resume.replacePdf : t.resume.uploadPdf}</span>
             </button>
             <input ref={fileRef} type="file" accept=".pdf" hidden onChange={handleFile} />
           </>
@@ -96,7 +111,7 @@ export function ResumeCard({
             onClick={onImprove}
           >
             <span className={styles.improveSparkle}>✨</span>
-            <span>{isImproving ? t.improve?.running ?? 'Улучшаю…' : t.improve?.button ?? 'Улучшить резюме'}</span>
+            <span>{isImproving ? (t.improve?.runningWithTime?.(elapsed) ?? `Улучшаю... ${elapsed}с`) : t.improve?.button ?? 'Улучшить резюме'}</span>
           </button>
         )}
       </div>

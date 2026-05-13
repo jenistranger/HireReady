@@ -47,6 +47,7 @@
 <% if avatar_path %>\includegraphics[width=24mm]{<< avatar_path >>}\par\vspace{6pt}<% endif %>
 {\headingfont\bfseries\fontsize{26}{30}\selectfont\color{ink}<< name | tex >>}\par
 <% if headline %>\vspace{4pt}{\large\color{accent}<< headline | tex >>}\par<% endif %>
+<% if salary_expectation %>\vspace{3pt}{\small\color{muted}<< salary_label | tex >>: << salary_expectation | tex >>}\par<% endif %>
 <% if emails or phones or links or other_contacts %>
 \vspace{6pt}
 {\small\color{muted}%
@@ -64,12 +65,12 @@
 <% endif %>
 
 <% if summary %>
-\section*{Summary}
+\section*{<< labels.summary | tex >>}
 {\color{ink}<< summary | tex >>}
 <% endif %>
 
 <% if experience %>
-\section*{Experience}
+\section*{<< labels.experience | tex >>}
 <% for e in experience %>
 \rolerow{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.period | tex >>}{<< e.location | tex >>}
 <% if e.description %>{\small\color{muted}<< e.description | tex >>}\par<% endif %>
@@ -84,7 +85,7 @@
 <% endif %>
 
 <% if projects %>
-\section*{Projects}
+\section*{<< labels.projects | tex >>}
 <% for e in projects %>
 \rolerow{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.period | tex >>}{<< e.location | tex >>}
 <% if e.description %>{\small\color{muted}<< e.description | tex >>}\par<% endif %>
@@ -99,21 +100,21 @@
 <% endif %>
 
 <% if education %>
-\section*{Education}
+\section*{<< labels.education | tex >>}
 <% for e in education %>
 \rolerow{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.period | tex >>}{<< e.location | tex >>}
 <% endfor %>
 <% endif %>
 
 <% if skills %>
-\section*{Skills}
+\section*{<< labels.skills | tex >>}
 <% for s in skills %>
 <% if s.label %>\textbf{\color{ink}<< s.label | tex >>:}\quad <% endif %>{\color{ink}<< s.value | tex >>}\par\vspace{2pt}
 <% endfor %>
 <% endif %>
 
 <% if languages %>
-\section*{Languages}
+\section*{<< labels.languages | tex >>}
 {\color{ink}<< languages | tex >>}
 <% endif %>
 

@@ -150,6 +150,8 @@ def _build_context(data: dict, avatar_filename: Optional[str] = None) -> dict:
     skills = []
     languages = None
     other_sections = []  # unrecognized text sections
+    doc_lang = _document_lang(data)
+    labels = _labels_for_lang(doc_lang)
 
     for sec in sections:
         title = (sec.get("title") or "").strip()
@@ -158,7 +160,7 @@ def _build_context(data: dict, avatar_filename: Optional[str] = None) -> dict:
 
         if stype == "text":
             content = (sec.get("content") or "").strip()
-            if upper in ("SUMMARY", "ABOUT", "О СЕБЕ", "ОБОМНЕ"):
+            if upper in ("SUMMARY", "ABOUT", "PROFILE", "О СЕБЕ", "ОБО МНЕ", "ОБОМНЕ", "ПРОФИЛЬ"):
                 summary = content
             elif upper in ("LANGUAGES", "ЯЗЫКИ"):
                 languages = content
@@ -203,6 +205,12 @@ def _build_context(data: dict, avatar_filename: Optional[str] = None) -> dict:
     return {
         "name": header.get("name", "") or "",
         "headline": header.get("headline", "") or "",
+        "salary_expectation": header.get("salary_expectation", "") or "",
+        "salary_label": header.get("salary_label", "") or (
+            "Ожидаемый доход"
+            if _has_cyrillic(header.get("salary_expectation", "") or "")
+            else "Expected salary"
+        ),
         "contacts": contacts,
         "emails": emails,
         "phones": phones,
@@ -216,7 +224,68 @@ def _build_context(data: dict, avatar_filename: Optional[str] = None) -> dict:
         "languages": languages,
         "other_sections": other_sections,
         "raw_sections": sections,
+        "doc_lang": doc_lang,
+        "labels": labels,
         "avatar_path": avatar_filename,
+    }
+
+
+def _has_cyrillic(value: str) -> bool:
+    return any("а" <= ch.lower() <= "я" or ch.lower() == "ё" for ch in value or "")
+
+
+def _document_lang(data: dict) -> str:
+    header = data.get("header", {}) or {}
+    chunks = [
+        header.get("name", ""),
+        header.get("headline", ""),
+        header.get("salary_expectation", ""),
+        " ".join(header.get("contacts", []) or []),
+    ]
+    for sec in data.get("sections", []) or []:
+        chunks.append(sec.get("title", "") or "")
+        chunks.append(sec.get("content", "") or "")
+        for entry in sec.get("entries", []) or []:
+            chunks.extend([
+                entry.get("title", ""),
+                entry.get("subtitle", ""),
+                entry.get("description", ""),
+                " ".join(entry.get("bullets", []) or []),
+            ])
+        for item in sec.get("items", []) or []:
+            chunks.extend([item.get("label", ""), item.get("value", "")])
+    return "ru" if _has_cyrillic("\n".join(chunks)) else "en"
+
+
+def _labels_for_lang(lang: str) -> dict:
+    if lang == "ru":
+        return {
+            "summary": "О себе",
+            "profile": "О себе",
+            "about": "О себе",
+            "experience": "Опыт работы",
+            "employment": "Опыт работы",
+            "education": "Образование",
+            "skills": "Навыки",
+            "technical_skills": "Навыки",
+            "projects": "Проекты",
+            "languages": "Языки",
+            "contact": "Контакты",
+            "personal_details": "Контакты",
+        }
+    return {
+        "summary": "Summary",
+        "profile": "Profile",
+        "about": "About",
+        "experience": "Experience",
+        "employment": "Employment",
+        "education": "Education",
+        "skills": "Skills",
+        "technical_skills": "Technical Skills",
+        "projects": "Projects",
+        "languages": "Languages",
+        "contact": "Contact",
+        "personal_details": "Personal Details",
     }
 
 

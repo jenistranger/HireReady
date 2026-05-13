@@ -14,11 +14,41 @@ import { LinkModal } from './components/LinkModal/LinkModal'
 import * as api from './api'
 import styles from './App.module.css'
 
+const RESUME_MAX_LEN = 4000
+const JOB_MAX_LEN = 6000
+
+function hasCyrillic(value) {
+  return /[А-Яа-яЁё]/.test(String(value || ''))
+}
+
+function structuredHasCyrillic(data) {
+  const chunks = [
+    data.name,
+    data.headline,
+    data.location,
+    data.salaryExpectation,
+    data.summary,
+    ...(data.contacts || []).flatMap(c => [c.type, c.value]),
+    ...(data.links || []),
+    ...(data.experience || []).flatMap(e => [e.role, e.company, e.period, e.location, e.bullets]),
+    ...(data.education || []).flatMap(e => [e.degree, e.institution, e.period]),
+    ...(data.skills || []).flatMap(s => [s.label, s.value]),
+  ]
+  return chunks.some(hasCyrillic)
+}
+
 function serializeStructuredData(data) {
   const out = []
+  const isRu = structuredHasCyrillic(data)
+  const headings = isRu
+    ? { summary: 'О СЕБЕ', experience: 'ОПЫТ РАБОТЫ', education: 'ОБРАЗОВАНИЕ', skills: 'НАВЫКИ' }
+    : { summary: 'SUMMARY', experience: 'EXPERIENCE', education: 'EDUCATION', skills: 'SKILLS' }
 
   if (data.name) out.push(data.name)
   if (data.headline) out.push(data.headline)
+  if (data.salaryExpectation && data.salaryExpectation.trim()) {
+    out.push(`${isRu ? 'Ожидаемый доход' : 'Expected salary'}: ${data.salaryExpectation.trim()}`)
+  }
 
   const contactParts = []
   if (data.location) contactParts.push(data.location)
@@ -32,14 +62,14 @@ function serializeStructuredData(data) {
 
   if (data.summary && data.summary.trim()) {
     out.push('')
-    out.push('## SUMMARY')
+    out.push(`## ${headings.summary}`)
     out.push(data.summary.trim())
   }
 
   const experience = (data.experience || []).filter(e => e.role || e.company)
   if (experience.length) {
     out.push('')
-    out.push('## EXPERIENCE')
+    out.push(`## ${headings.experience}`)
     for (const e of experience) {
       out.push('')
       const headerParts = []
@@ -58,7 +88,7 @@ function serializeStructuredData(data) {
   const education = (data.education || []).filter(e => e.degree || e.institution)
   if (education.length) {
     out.push('')
-    out.push('## EDUCATION')
+    out.push(`## ${headings.education}`)
     for (const e of education) {
       out.push('')
       const headerParts = []
@@ -72,7 +102,7 @@ function serializeStructuredData(data) {
   const skills = (data.skills || []).filter(sk => sk.value)
   if (skills.length) {
     out.push('')
-    out.push('## SKILLS')
+    out.push(`## ${headings.skills}`)
     for (const sk of skills) {
       if (sk.label) {
         out.push(`**${sk.label}:** ${sk.value}`)
@@ -111,6 +141,7 @@ export function App() {
   const [resumeMode, setResumeMode] = useState('text')
   const [structuredData, setStructuredData] = useState({
     name: '', headline: '', location: '',
+    salaryExpectation: '',
     contacts: [{ type: '', value: '' }],
     summary: '',
     links: [''],
@@ -120,6 +151,9 @@ export function App() {
   })
   const [avatar, setAvatar] = useState(null)
   const [jobText, setJobText] = useState('')
+  const [resumePdfFile, setResumePdfFile] = useState(null)
+  const [jobPdfFile, setJobPdfFile] = useState(null)
+  const [jobUrlSource, setJobUrlSource] = useState(null)
   const [result, setResult] = useState('')
   const [template, setTemplate] = useState(() =>
     TEMPLATE_KEYS.includes('awesome') ? 'awesome' : TEMPLATE_KEYS[0]
@@ -135,10 +169,22 @@ export function App() {
   const [inputExpand, setInputExpand] = useState({ open: false, field: null })
 
   useEffect(() => {
-    if (!isLoading) { setElapsed(0); return }
+    if (!isLoading && !isImproving) { setElapsed(0); return }
     const id = setInterval(() => setElapsed(s => s + 1), 1000)
     return () => clearInterval(id)
-  }, [isLoading])
+  }, [isLoading, isImproving])
+
+  useEffect(() => {
+    return () => {
+      if (resumePdfFile?.previewUrl) URL.revokeObjectURL(resumePdfFile.previewUrl)
+    }
+  }, [resumePdfFile])
+
+  useEffect(() => {
+    return () => {
+      if (jobPdfFile?.previewUrl) URL.revokeObjectURL(jobPdfFile.previewUrl)
+    }
+  }, [jobPdfFile])
 
   // Keep a stable ref to handleGenerate for use in the keyboard effect
   const handleGenerateRef = useRef(null)
@@ -216,8 +262,21 @@ export function App() {
     setError(null)
     try {
       const text = await api.extractPdf(file)
-      if (field === 'resume') setResumeText(text.slice(0, 3000))
-      else setJobText(text.slice(0, 5000))
+      const fileState = { name: file.name, size: file.size, previewUrl: URL.createObjectURL(file) }
+      if (field === 'resume') {
+        setResumeText(text.slice(0, RESUME_MAX_LEN))
+        setResumePdfFile(prev => {
+          if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl)
+          return fileState
+        })
+      } else {
+        setJobText(text.slice(0, JOB_MAX_LEN))
+        setJobUrlSource(null)
+        setJobPdfFile(prev => {
+          if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl)
+          return fileState
+        })
+      }
     } catch (e) {
       setError(t.errors.pdfReadError)
     }
@@ -226,8 +285,14 @@ export function App() {
   async function handleFetchUrl(url) {
     setIsFetchingUrl(true)
     try {
-      const text = await api.fetchUrl(url)
-      setJobText(text.slice(0, 5000))
+      const data = await api.fetchUrl(url)
+      if (jobPdfFile?.previewUrl) URL.revokeObjectURL(jobPdfFile.previewUrl)
+      setJobPdfFile(null)
+      setJobText((data.text || '').slice(0, JOB_MAX_LEN))
+      setJobUrlSource({
+        title: data.title || t.urlSource?.untitled || 'Вакансия hh.ru',
+        url: data.url || url,
+      })
       setLinkOpen(false)
       setError(null)
     } catch (e) {
@@ -236,6 +301,27 @@ export function App() {
     } finally {
       setIsFetchingUrl(false)
     }
+  }
+
+  function clearResumePdf() {
+    setResumePdfFile(prev => {
+      if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl)
+      return null
+    })
+    setResumeText('')
+  }
+
+  function clearJobPdf() {
+    setJobPdfFile(prev => {
+      if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl)
+      return null
+    })
+    setJobText('')
+  }
+
+  function clearJobUrlSource() {
+    setJobUrlSource(null)
+    setJobText('')
   }
 
   async function handleDownloadPdf() {
@@ -291,6 +377,8 @@ export function App() {
               onChange={setResumeText}
               onExpand={() => setInputExpand({ open: true, field: 'resume' })}
               onExtractPdf={handleExtractPdf}
+              pdfFile={resumePdfFile}
+              onClearPdf={clearResumePdf}
               mode={resumeMode}
               onModeChange={setResumeMode}
               structuredData={structuredData}
@@ -298,6 +386,7 @@ export function App() {
               onImprove={handleImprove}
               canImprove={resumeNonEmpty}
               isImproving={isImproving}
+              elapsed={elapsed}
               avatar={avatar}
               onAvatarChange={setAvatar}
             />
@@ -306,9 +395,14 @@ export function App() {
               onChange={setJobText}
               onExpand={() => setInputExpand({ open: true, field: 'job' })}
               onExtractPdf={handleExtractPdf}
+              pdfFile={jobPdfFile}
+              onClearPdf={clearJobPdf}
+              urlSource={jobUrlSource}
+              onClearUrlSource={clearJobUrlSource}
               onPasteLink={() => setLinkOpen(true)}
               onGenerate={handleGenerate}
-              isLoading={isLoading || isImproving}
+              isLoading={isLoading}
+              isBusy={isLoading || isImproving}
               elapsed={elapsed}
               canGenerate={canGenerate}
             />

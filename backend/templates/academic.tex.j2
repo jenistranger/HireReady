@@ -54,6 +54,7 @@
 \vspace{0pt}
 <% if name %>{\bfseries\fontsize{22}{26}\selectfont\color{ink}<< name | tex >>}\par<% endif %>
 <% if headline %>\vspace{3pt}{\itshape\large\color{muted}<< headline | tex >>}\par<% endif %>
+<% if salary_expectation %>\vspace{3pt}{\acsans\small\color{muted}<< salary_label | tex >>: << salary_expectation | tex >>}\par<% endif %>
 \vspace{6pt}
 <% if emails or phones or links or other_contacts %>
 {\acsans\small\color{ink}%
@@ -77,12 +78,12 @@
 \textcolor{rule}{\rule{\linewidth}{0.4pt}}
 
 <% if summary %>
-\section*{Profile}
+\section*{<< labels.profile | tex >>}
 {\color{ink}<< summary | tex >>}
 <% endif %>
 
 <% if experience %>
-\section*{Employment}
+\section*{<< labels.employment | tex >>}
 <% for e in experience %>
 \acrow{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
 <% if e.description %>{\small\color{ink}<< e.description | tex >>}\par<% endif %>%
@@ -92,7 +93,7 @@
 <% endif %>
 
 <% if education %>
-\section*{Education}
+\section*{<< labels.education | tex >>}
 <% for e in education %>
 \acrow{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
 <% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item << b | tex >><% endfor %>\end{itemize}<% endif %>%
@@ -101,7 +102,7 @@
 <% endif %>
 
 <% if projects %>
-\section*{Projects}
+\section*{<< labels.projects | tex >>}
 <% for e in projects %>
 \acrow{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
 <% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item << b | tex >><% endfor %>\end{itemize}<% endif %>%
@@ -110,14 +111,14 @@
 <% endif %>
 
 <% if skills %>
-\section*{Skills}
+\section*{<< labels.skills | tex >>}
 <% for s in skills %>
 <% if s.label %>{\bfseries\color{ink}<< s.label | tex >>:}\quad <% endif %>{\color{ink}<< s.value | tex >>}\par\vspace{2pt}
 <% endfor %>
 <% endif %>
 
 <% if languages %>
-\section*{Languages}
+\section*{<< labels.languages | tex >>}
 {\color{ink}<< languages | tex >>}
 <% endif %>
 

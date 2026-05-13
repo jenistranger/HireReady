@@ -50,7 +50,7 @@ export async function fetchUrl(url) {
   })
   if (!resp.ok) throw await parseError(resp)
   const data = await resp.json()
-  return data.text
+  return data
 }
 
 function buildPdfBody(text, template, inline, avatar) {

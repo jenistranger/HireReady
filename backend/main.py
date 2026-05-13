@@ -1,10 +1,11 @@
 import os
 import io
 import re
+import html as html_lib
 import socket
 import ipaddress
 import logging
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
@@ -38,28 +39,31 @@ SYSTEM_PROMPT = """Ты — профессиональный HR-консульт
 
 1. СОХРАНЯЙ ФАКТЫ. Не придумывай опыт, компании, должности, даты, метрики или навыки которых нет в оригинале. Все факты должны быть правдивыми.
 
-2. ATS-ОПТИМИЗАЦИЯ. Вплети ключевые слова из вакансии в первые три секции (SUMMARY, последний опыт работы, SKILLS). Используй точную терминологию вакансии.
+2. ATS-ОПТИМИЗАЦИЯ. Вплети ключевые слова из вакансии в первые три секции (summary/about, последний опыт работы, skills/навыки). Используй точную терминологию вакансии.
 
 3. ACTION VERBS. Каждый bullet начинай с глагола действия: "запустил", "спроектировал", "увеличил", "настроил", "руководил" (RU) или "Launched", "Designed", "Increased", "Built" (EN).
 
 4. МЕТРИКИ. Сохраняй любые числа из оригинала (%, размеры команды, объёмы данных, выручку). Никогда не выдумывай метрики, которых нет.
 
-5. РЕЛЕВАНТНОСТЬ. Опыт работы — в обратном хронологическом порядке (новый сверху). Bullets под каждой работой переставь так, чтобы наиболее релевантные вакансии шли первыми.
+5. ЗАРПЛАТНЫЕ ОЖИДАНИЯ. Если в оригинале есть ожидаемый доход / salary expectations, сохрани его отдельной строкой после должности. Не придумывай сумму.
 
-6. ЯЗЫК. Пиши на том же языке, что и оригинальное резюме.
+6. РЕЛЕВАНТНОСТЬ. Опыт работы — в обратном хронологическом порядке (новый сверху). Bullets под каждой работой переставь так, чтобы наиболее релевантные вакансии шли первыми.
 
-7. ДЛИНА. Summary не больше 3 строк. Каждый bullet не больше 2 строк. Всё резюме помещается на одну страницу A4 (~ 600 слов).
+7. ЯЗЫК. Пиши на том же языке, что и оригинальное резюме.
+
+8. ДЛИНА. Summary не больше 3 строк. Каждый bullet не больше 2 строк. Всё резюме помещается на одну страницу A4 (~ 600 слов).
 
 ФОРМАТ ВЫВОДА — СТРОГО СЛЕДУЙ ЭТОЙ СТРУКТУРЕ:
 
 Имя Фамилия
 Должность одной строкой
+Ожидаемый доход: сумма / месяц (только если есть в оригинале)
 Контакт1 · Контакт2 · Контакт3
 
-## SUMMARY
+## SUMMARY / О СЕБЕ
 2-3 строки, заточенных под вакансию.
 
-## EXPERIENCE
+## EXPERIENCE / ОПЫТ РАБОТЫ
 
 ### Должность · Компания
 2022 — настоящее · Москва
@@ -71,23 +75,23 @@ SYSTEM_PROMPT = """Ты — профессиональный HR-консульт
 * Bullet
 * Bullet
 
-## EDUCATION
+## EDUCATION / ОБРАЗОВАНИЕ
 
 ### Степень · Учреждение
 2018 — 2020
 
-## SKILLS
+## SKILLS / НАВЫКИ
 **Языки программирования:** Python, Go, TypeScript
 **Фреймворки:** FastAPI, React, Django
 
-## PROJECTS
+## PROJECTS / ПРОЕКТЫ
 (только если есть в оригинале)
 
 ### Название проекта
 Краткое описание · github.com/x
 * Bullet (опционально)
 
-## LANGUAGES
+## LANGUAGES / ЯЗЫКИ
 (только если есть в оригинале)
 Русский (родной), Английский (C1)
 
@@ -95,7 +99,7 @@ SYSTEM_PROMPT = """Ты — профессиональный HR-консульт
 - Добавлять секции "Цель", "Objective", "О себе", если их не было в оригинале.
 - Вводные фразы ("Вот переработанное резюме:") — сразу начинай с имени.
 - Markdown-обёртку ```...``` — выводи только текст резюме.
-- Менять порядок секций (SUMMARY → EXPERIENCE → EDUCATION → SKILLS → PROJECTS → LANGUAGES).
+- Менять порядок секций (SUMMARY/О СЕБЕ → EXPERIENCE/ОПЫТ РАБОТЫ → EDUCATION/ОБРАЗОВАНИЕ → SKILLS/НАВЫКИ → PROJECTS/ПРОЕКТЫ → LANGUAGES/ЯЗЫКИ).
 - Опускать `## ` перед секциями или `### ` перед записями.
 - Придумывать факты, метрики, навыки или опыт.
 
@@ -112,36 +116,39 @@ SYSTEM_PROMPT_IMPROVE = """Ты — профессиональный HR-конс
 
 3. СОХРАНЯЙ МЕТРИКИ. Все числа из оригинала (%, размеры команды, объёмы данных, выручку) переноси без изменений. НИКОГДА не выдумывай метрики.
 
-4. СТРУКТУРА. Если оригинал плохо структурирован, разбей опыт по работам с заголовками, добавь секции SUMMARY и SKILLS если их нет (на основе того, что уже есть в резюме). Не добавляй секции "Цель", "Objective".
+4. ЗАРПЛАТНЫЕ ОЖИДАНИЯ. Если в оригинале есть ожидаемый доход / salary expectations, сохрани его отдельной строкой после должности. Не придумывай сумму.
 
-5. ГРАММАТИКА И СТИЛЬ. Исправляй опечатки, пунктуацию, согласование. Делай формулировки лаконичнее. Убирай "воду".
+5. СТРУКТУРА. Если оригинал плохо структурирован, разбей опыт по работам с заголовками, добавь секции summary/about и skills/навыки если их нет (на основе того, что уже есть в резюме). Не добавляй секции "Цель", "Objective".
 
-6. ЯЗЫК. Пиши на том же языке, что и оригинальное резюме.
+6. ГРАММАТИКА И СТИЛЬ. Исправляй опечатки, пунктуацию, согласование. Делай формулировки лаконичнее. Убирай "воду".
 
-7. ДЛИНА. Summary не больше 3 строк. Каждый bullet не больше 2 строк. Всё резюме помещается на одну страницу A4 (~ 600 слов).
+7. ЯЗЫК. Пиши на том же языке, что и оригинальное резюме.
+
+8. ДЛИНА. Summary не больше 3 строк. Каждый bullet не больше 2 строк. Всё резюме помещается на одну страницу A4 (~ 600 слов).
 
 ФОРМАТ ВЫВОДА — СТРОГО СЛЕДУЙ ЭТОЙ СТРУКТУРЕ:
 
 Имя Фамилия
 Должность одной строкой
+Ожидаемый доход: сумма / месяц (только если есть в оригинале)
 Контакт1 · Контакт2 · Контакт3
 
-## SUMMARY
+## SUMMARY / О СЕБЕ
 2-3 строки.
 
-## EXPERIENCE
+## EXPERIENCE / ОПЫТ РАБОТЫ
 
 ### Должность · Компания
 2022 — настоящее · Москва
 * Достижение с глаголом действия
 * Ещё одно достижение
 
-## EDUCATION
+## EDUCATION / ОБРАЗОВАНИЕ
 
 ### Степень · Учреждение
 2018 — 2020
 
-## SKILLS
+## SKILLS / НАВЫКИ
 **Категория:** значения через запятую
 
 ЗАПРЕЩЕНО:
@@ -158,6 +165,37 @@ _ENTRY_SECTIONS = {"EXPERIENCE", "WORK", "WORK EXPERIENCE", "EDUCATION", "PROJEC
                    "ОПЫТ", "ОПЫТ РАБОТЫ", "ОБРАЗОВАНИЕ", "ПРОЕКТЫ"}
 _KV_SECTIONS = {"SKILLS", "TECHNOLOGIES", "TECH STACK", "НАВЫКИ", "СТЕК", "ТЕХНОЛОГИИ"}
 
+_RU_HEADINGS = {
+    "SUMMARY": "О СЕБЕ",
+    "ABOUT": "О СЕБЕ",
+    "PROFILE": "О СЕБЕ",
+    "EXPERIENCE": "ОПЫТ РАБОТЫ",
+    "WORK": "ОПЫТ РАБОТЫ",
+    "WORK EXPERIENCE": "ОПЫТ РАБОТЫ",
+    "EMPLOYMENT": "ОПЫТ РАБОТЫ",
+    "EDUCATION": "ОБРАЗОВАНИЕ",
+    "SKILLS": "НАВЫКИ",
+    "TECHNICAL SKILLS": "НАВЫКИ",
+    "TECHNOLOGIES": "НАВЫКИ",
+    "TECH STACK": "НАВЫКИ",
+    "PROJECTS": "ПРОЕКТЫ",
+    "LANGUAGES": "ЯЗЫКИ",
+}
+
+_EN_HEADINGS = {
+    "О СЕБЕ": "SUMMARY",
+    "ОБО МНЕ": "SUMMARY",
+    "ПРОФИЛЬ": "SUMMARY",
+    "ОПЫТ": "EXPERIENCE",
+    "ОПЫТ РАБОТЫ": "EXPERIENCE",
+    "ОБРАЗОВАНИЕ": "EDUCATION",
+    "НАВЫКИ": "SKILLS",
+    "СТЕК": "SKILLS",
+    "ТЕХНОЛОГИИ": "SKILLS",
+    "ПРОЕКТЫ": "PROJECTS",
+    "ЯЗЫКИ": "LANGUAGES",
+}
+
 
 def _section_type(title: str) -> str:
     t = title.strip().upper()
@@ -166,6 +204,54 @@ def _section_type(title: str) -> str:
     if t in _KV_SECTIONS:
         return "kv"
     return "text"
+
+
+def _has_cyrillic(text: str) -> bool:
+    return bool(re.search(r"[А-Яа-яЁё]", text or ""))
+
+
+def _resume_output_lang(resume: str, job_description: str = "") -> str:
+    return "ru" if _has_cyrillic(f"{resume}\n{job_description}") else "en"
+
+
+def _section_language_instruction(lang: str) -> str:
+    if lang == "ru":
+        return (
+            "ВАЖНО: используй русские заголовки секций ровно так: "
+            "## О СЕБЕ, ## ОПЫТ РАБОТЫ, ## ОБРАЗОВАНИЕ, ## НАВЫКИ, "
+            "## ПРОЕКТЫ, ## ЯЗЫКИ. Не используй SUMMARY, EXPERIENCE, EDUCATION, SKILLS."
+        )
+    return (
+        "Use English section headings exactly as: ## SUMMARY, ## EXPERIENCE, "
+        "## EDUCATION, ## SKILLS, ## PROJECTS, ## LANGUAGES."
+    )
+
+
+def _normalize_section_headings(text: str, lang: str) -> str:
+    heading_map = _RU_HEADINGS if lang == "ru" else _EN_HEADINGS
+    out = []
+    for line in (text or "").splitlines():
+        m = re.match(r"^(##\s+)(.+?)\s*$", line)
+        if not m:
+            out.append(line)
+            continue
+        title = m.group(2).strip()
+        normalized = re.sub(r"\s*/\s*.*$", "", title).strip()
+        replacement = heading_map.get(normalized.upper())
+        out.append(f"{m.group(1)}{replacement or title}")
+    return "\n".join(out).strip()
+
+
+def _parse_salary_line(line: str) -> dict | None:
+    m = re.match(
+        r"^\s*(ожидаемый доход|зарплатные ожидания|expected salary|salary expectations)\s*:?\s*(.+?)\s*$",
+        line or "",
+        flags=re.IGNORECASE,
+    )
+    if not m:
+        return None
+    label = "Ожидаемый доход" if re.search(r"[А-Яа-яЁё]", m.group(1)) else "Expected salary"
+    return {"value": m.group(2).strip(), "label": label}
 
 
 def parse_resume(text: str) -> dict:
@@ -186,7 +272,14 @@ def parse_resume(text: str) -> dict:
     name = header_lines[0] if header_lines else ""
     headline = header_lines[1] if len(header_lines) > 1 else ""
     contacts: list[str] = []
+    salary_expectation = ""
+    salary_label = ""
     for line in header_lines[2:]:
+        salary = _parse_salary_line(line)
+        if salary:
+            salary_expectation = salary["value"]
+            salary_label = salary["label"]
+            continue
         parts = re.split(r"\s*[·•|]\s*", line)
         contacts.extend(p.strip() for p in parts if p.strip())
 
@@ -218,7 +311,13 @@ def parse_resume(text: str) -> dict:
     flush()
 
     return {
-        "header": {"name": name, "headline": headline, "contacts": contacts},
+        "header": {
+            "name": name,
+            "headline": headline,
+            "contacts": contacts,
+            "salary_expectation": salary_expectation,
+            "salary_label": salary_label,
+        },
         "sections": sections,
     }
 
@@ -397,6 +496,23 @@ def _is_safe_url(url: str) -> tuple[bool, str]:
     return True, ""
 
 
+def _is_hh_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return False
+    host = (parsed.hostname or "").lower()
+    return parsed.scheme in ("http", "https") and (host == "hh.ru" or host.endswith(".hh.ru"))
+
+
+def _extract_html_title(html: str) -> str:
+    m = re.search(r"<title[^>]*>(.*?)</title>", html or "", flags=re.DOTALL | re.IGNORECASE)
+    if not m:
+        return ""
+    title = re.sub(r"\s+", " ", m.group(1)).strip()
+    return html_lib.unescape(title)
+
+
 async def _call_openrouter(system_prompt: str, user_message: str) -> str:
     payload = {
         "model": MODEL,
@@ -453,12 +569,15 @@ async def tailor_resume(request: Request, body: TailorRequest):
     if not body.job_description.strip():
         raise HTTPException(status_code=400, detail="Описание вакансии не может быть пустым")
 
+    output_lang = _resume_output_lang(body.resume, body.job_description)
     user_message = (
         f"Переработай резюме под данную вакансию.\n\n"
+        f"{_section_language_instruction(output_lang)}\n\n"
         f"РЕЗЮМЕ КАНДИДАТА:\n{body.resume}\n\n"
         f"ОПИСАНИЕ ВАКАНСИИ:\n{body.job_description}"
     )
     tailored = await _call_openrouter(SYSTEM_PROMPT, user_message)
+    tailored = _normalize_section_headings(tailored, output_lang)
 
     logger.info(
         "Tailor done. Input: %d chars, output: %d chars",
@@ -476,12 +595,15 @@ async def improve_resume(request: Request, body: ImproveRequest):
     if not body.resume.strip():
         raise HTTPException(status_code=400, detail="Резюме не может быть пустым")
 
+    output_lang = _resume_output_lang(body.resume)
     user_message = (
         f"Улучши это резюме: исправь грамматику, перепиши в action verbs, "
         f"приведи к чистой структуре. Не выдумывай фактов.\n\n"
+        f"{_section_language_instruction(output_lang)}\n\n"
         f"РЕЗЮМЕ КАНДИДАТА:\n{body.resume}"
     )
     improved = await _call_openrouter(SYSTEM_PROMPT_IMPROVE, user_message)
+    improved = _normalize_section_headings(improved, output_lang)
 
     logger.info("Improve done. Input: %d chars, output: %d chars", len(body.resume), len(improved))
     return ImproveResponse(improved_resume=improved)
@@ -508,6 +630,9 @@ async def extract_pdf(request: Request, file: UploadFile = File(...)):
 @app.post("/api/fetch-url")
 @limiter.limit("10/minute")
 async def fetch_url(request: Request, body: UrlRequest):
+    if not _is_hh_url(body.url):
+        raise HTTPException(status_code=400, detail="Поддерживаются только ссылки на вакансии hh.ru")
+
     ok, reason = _is_safe_url(body.url)
     if not ok:
         raise HTTPException(status_code=400, detail=reason)
@@ -524,6 +649,9 @@ async def fetch_url(request: Request, body: UrlRequest):
                 next_url = resp.headers.get("location")
                 if not next_url:
                     break
+                next_url = urljoin(str(resp.url), next_url)
+                if not _is_hh_url(next_url):
+                    raise HTTPException(status_code=400, detail="Редирект не на hh.ru")
                 ok, reason = _is_safe_url(next_url)
                 if not ok:
                     raise HTTPException(status_code=400, detail=f"Редирект на {reason}")
@@ -538,11 +666,12 @@ async def fetch_url(request: Request, body: UrlRequest):
         raise HTTPException(status_code=400, detail=f"Не удалось загрузить URL: {e}")
 
     html = resp.text
+    title = _extract_html_title(html)
     html = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE)
     html = re.sub(r"<style[^>]*>.*?</style>", "", html, flags=re.DOTALL | re.IGNORECASE)
     text = re.sub(r"<[^>]+>", " ", html)
     text = re.sub(r"\s+", " ", text).strip()
-    return {"text": text[:5000]}
+    return {"text": text[:6000], "title": title, "url": str(resp.url)}
 
 
 @app.post("/api/pdf")

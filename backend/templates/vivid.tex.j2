@@ -49,6 +49,7 @@
 \color{white}
 <% if name %>{\heavy\bfseries\fontsize{30}{32}\selectfont\color{white} << name | tex >>}\par<% endif %>
 <% if headline %>\vspace{3pt}{\large\color{white} << headline | tex >>}\par<% endif %>
+<% if salary_expectation %>\vspace{3pt}{\small\color{white} << salary_label | tex >>: << salary_expectation | tex >>}\par<% endif %>
 \vspace{8pt}
 <% if emails or phones or links or other_contacts %>
 {\small%
@@ -64,12 +65,12 @@
 \vspace{18mm}
 
 <% if summary %>
-\section*{About}
+\section*{<< labels.about | tex >>}
 {\color{ink}<< summary | tex >>}
 <% endif %>
 
 <% if experience %>
-\section*{Experience}
+\section*{<< labels.experience | tex >>}
 <% for e in experience %>
 {\heavy\bfseries\color{ink}<< e.title | tex >>}<% if e.subtitle %>\,{\color{pink}\textbullet}\,{\color{muted}<< e.subtitle | tex >>}<% endif %>\hfill{\small\color{purple}\bfseries << e.period | tex >>}\par
 <% if e.location %>{\small\color{muted}\faMapMarker*~<< e.location | tex >>}\par<% endif %>
@@ -85,7 +86,7 @@
 <% endif %>
 
 <% if projects %>
-\section*{Projects}
+\section*{<< labels.projects | tex >>}
 <% for e in projects %>
 {\bfseries\color{ink}<< e.title | tex >>}<% if e.subtitle %>\,{\color{muted}<< e.subtitle | tex >>}<% endif %>\hfill{\small\color{purple}<< e.period | tex >>}\par
 <% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item << b | tex >><% endfor %>\end{itemize}<% endif %>
@@ -94,7 +95,7 @@
 <% endif %>
 
 <% if skills %>
-\section*{Skills}
+\section*{<< labels.skills | tex >>}
 <% for s in skills %>
 <% if s.label %>{\color{purple}\bfseries\small\MakeUppercase{<< s.label | tex >>}}\par\vspace{3pt}<% endif %>
 <% for v in (s.value or '').split(',') %><% if v.strip() %>\pill{<< v.strip() | tex >>}\enspace<% endif %><% endfor %>
@@ -103,14 +104,14 @@
 <% endif %>
 
 <% if education %>
-\section*{Education}
+\section*{<< labels.education | tex >>}
 <% for e in education %>
 {\bfseries\color{ink}<< e.title | tex >>}<% if e.subtitle %>, {\color{muted}<< e.subtitle | tex >>}<% endif %>\hfill{\small\color{purple}<< e.period | tex >>}\par
 <% endfor %>
 <% endif %>
 
 <% if languages %>
-\section*{Languages}
+\section*{<< labels.languages | tex >>}
 {\color{ink}<< languages | tex >>}
 <% endif %>
 

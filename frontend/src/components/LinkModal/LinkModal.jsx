@@ -5,9 +5,13 @@ import styles from './LinkModal.module.css'
 export function LinkModal({ isOpen, onClose, onFetch, isFetching }) {
   const t = useLang()
   const [url, setUrl] = useState('')
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    if (isOpen) setUrl('')
+    if (isOpen) {
+      setUrl('')
+      setError('')
+    }
   }, [isOpen])
 
   function handleKeyDown(e) {
@@ -18,6 +22,10 @@ export function LinkModal({ isOpen, onClose, onFetch, isFetching }) {
   async function handleFetch() {
     const trimmed = url.trim()
     if (!trimmed) return
+    if (!isHhUrl(trimmed)) {
+      setError(t.link.hhOnlyError ?? 'Only hh.ru vacancy links are supported')
+      return
+    }
     await onFetch(trimmed)
     setUrl('')
   }
@@ -32,11 +40,13 @@ export function LinkModal({ isOpen, onClose, onFetch, isFetching }) {
           type="url"
           className={styles.input}
           value={url}
-          onChange={e => setUrl(e.target.value)}
+          onChange={e => { setUrl(e.target.value); setError('') }}
           onKeyDown={handleKeyDown}
-          placeholder="https://..."
+          placeholder="https://hh.ru/vacancy/..."
           autoFocus
         />
+        <p className={styles.hint}>{t.link.hhOnlyHint ?? 'Only hh.ru vacancy links are supported.'}</p>
+        {error && <p className={styles.error}>{error}</p>}
         <div className={styles.footer}>
           <button className={styles.cancelBtn} onClick={onClose}>{t.link.cancel}</button>
           <button className={styles.fetchBtn} onClick={handleFetch} disabled={isFetching}>
@@ -46,4 +56,14 @@ export function LinkModal({ isOpen, onClose, onFetch, isFetching }) {
       </div>
     </div>
   )
+}
+
+function isHhUrl(value) {
+  try {
+    const url = new URL(value)
+    const host = url.hostname.toLowerCase()
+    return (url.protocol === 'https:' || url.protocol === 'http:') && (host === 'hh.ru' || host.endsWith('.hh.ru'))
+  } catch {
+    return false
+  }
 }

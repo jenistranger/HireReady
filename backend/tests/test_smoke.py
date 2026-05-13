@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from fastapi.testclient import TestClient
 import main as app_module
-from main import app, parse_resume
+from main import app, parse_resume, _extract_html_title, _is_hh_url, _normalize_section_headings
 
 client = TestClient(app)
 
@@ -72,6 +72,58 @@ def test_fetch_url_blocks_non_http():
     assert r.status_code == 400
 
 
+def test_fetch_url_accepts_only_hh_domains():
+    assert _is_hh_url("https://hh.ru/vacancy/123")
+    assert _is_hh_url("https://spb.hh.ru/vacancy/123")
+    assert not _is_hh_url("https://example.com/vacancy/123")
+    assert not _is_hh_url("https://fake-hh.ru/vacancy/123")
+
+
+def test_extract_html_title():
+    html = "<html><head><title> Senior manager &amp; lead — hh.ru </title></head></html>"
+    assert _extract_html_title(html) == "Senior manager & lead — hh.ru"
+
+
+def test_normalize_section_headings_to_ru():
+    text = "Иван\nМенеджер\n\n## SUMMARY\nТекст\n\n## EXPERIENCE\n\n### Роль · Компания\n* Делал\n\n## SKILLS\n**Навыки:** CRM"
+    out = _normalize_section_headings(text, "ru")
+    assert "## О СЕБЕ" in out
+    assert "## ОПЫТ РАБОТЫ" in out
+    assert "## НАВЫКИ" in out
+    assert "## SUMMARY" not in out
+    assert "## EXPERIENCE" not in out
+    assert "## SKILLS" not in out
+
+
+def test_parse_resume_salary_expectation_ru():
+    text = (
+        "Иван Иванов\n"
+        "Менеджер проекта\n"
+        "Ожидаемый доход: 200 000 ₽ / месяц\n"
+        "Москва · ivan@example.com\n\n"
+        "## О СЕБЕ\nОпытный менеджер."
+    )
+    data = parse_resume(text)
+    assert data["header"]["salary_expectation"] == "200 000 ₽ / месяц"
+    assert data["header"]["salary_label"] == "Ожидаемый доход"
+    assert "Ожидаемый доход: 200 000 ₽ / месяц" not in data["header"]["contacts"]
+    assert "Москва" in data["header"]["contacts"]
+
+
+def test_parse_resume_salary_expectation_en():
+    text = (
+        "Jane Doe\n"
+        "Project Manager\n"
+        "Salary expectations: €4,000 / month\n"
+        "London · jane@example.com\n\n"
+        "## SUMMARY\nExperienced manager."
+    )
+    data = parse_resume(text)
+    assert data["header"]["salary_expectation"] == "€4,000 / month"
+    assert data["header"]["salary_label"] == "Expected salary"
+    assert "Salary expectations: €4,000 / month" not in data["header"]["contacts"]
+
+
 def test_parse_resume_basic():
     text = """John Doe
 Senior Engineer
@@ -131,6 +183,31 @@ Experienced engineer with 8 years building scalable systems.
     assert "Tools" in labels
 
 
+def test_parse_resume_russian_sections():
+    text = """Иван Иванов
+Менеджер проекта
+
+## О СЕБЕ
+Опытный менеджер.
+
+## ОПЫТ РАБОТЫ
+
+### Менеджер · Компания
+2022 — настоящее · Москва
+* Организовал работу команды
+
+## НАВЫКИ
+**Ключевые навыки:** CRM, переговоры
+"""
+    data = parse_resume(text)
+    summary = next(s for s in data["sections"] if s["title"] == "О СЕБЕ")
+    experience = next(s for s in data["sections"] if s["title"] == "ОПЫТ РАБОТЫ")
+    skills = next(s for s in data["sections"] if s["title"] == "НАВЫКИ")
+    assert summary["type"] == "text"
+    assert experience["type"] == "entries"
+    assert skills["type"] == "kv"
+
+
 def test_parse_resume_handles_minimal():
     text = "Jane Doe\n\n## SUMMARY\nShort summary."
     data = parse_resume(text)
@@ -159,7 +236,7 @@ def test_latex_render_all_templates():
     from main import LATEX_TEMPLATES
 
     text = (
-        "Jane Doe\nEngineer\nMoscow · jane@example.com\n\n"
+        "Jane Doe\nEngineer\nExpected salary: €4,000 / month\nMoscow · jane@example.com\n\n"
         "## SUMMARY\nTest summary with 50% growth.\n\n"
         "## EXPERIENCE\n\n### Eng · Co\n2022 — 2024 · Remote\n* Did stuff\n* More & cool 100%\n\n"
         "## EDUCATION\n\n### MSc · MSU\n2018 — 2020\n\n"
@@ -170,8 +247,28 @@ def test_latex_render_all_templates():
         tex = render_latex(data, tpl)
         assert "\\begin{document}" in tex
         assert "\\end{document}" in tex
+        assert "Expected salary" in tex
+        assert "€4,000 / month" in tex
         # User text with & and % must be escaped
         assert "100\\%" in tex or "100%" not in tex.split("\\end{document}")[0]
+
+
+def test_latex_render_uses_russian_labels_for_russian_resume():
+    from latex.render import render_latex
+
+    text = (
+        "Иван Иванов\nМенеджер проекта\nМосква · ivan@example.com\n\n"
+        "## О СЕБЕ\nОпытный менеджер.\n\n"
+        "## ОПЫТ РАБОТЫ\n\n### Менеджер · Компания\n2022 — настоящее\n* Организовал работу команды\n\n"
+        "## НАВЫКИ\n**Ключевые навыки:** CRM, переговоры\n"
+    )
+    tex = render_latex(parse_resume(text), "awesome")
+    assert "О себе" in tex
+    assert "Опыт работы" in tex
+    assert "Навыки" in tex
+    assert "Summary" not in tex
+    assert "Experience" not in tex
+    assert "Skills" not in tex
 
 
 def test_latex_escape_dangerous_chars():

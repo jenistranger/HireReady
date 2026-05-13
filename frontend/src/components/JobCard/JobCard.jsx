@@ -1,9 +1,26 @@
 import { useRef } from 'react'
 import { useLang } from '../../LangContext'
+import { PdfFileCard } from '../PdfFileCard/PdfFileCard'
+import { UrlSourceCard } from '../UrlSourceCard/UrlSourceCard'
 
-const MAX_LEN = 5000
+const MAX_LEN = 6000
 
-export function JobCard({ value, onChange, onExpand, onExtractPdf, onPasteLink, onGenerate, isLoading, elapsed, canGenerate = true }) {
+export function JobCard({
+  value,
+  onChange,
+  onExpand,
+  onExtractPdf,
+  onPasteLink,
+  onGenerate,
+  isLoading,
+  isBusy,
+  elapsed,
+  canGenerate = true,
+  pdfFile,
+  onClearPdf,
+  urlSource,
+  onClearUrlSource,
+}) {
   const t = useLang()
   const fileRef = useRef(null)
 
@@ -19,27 +36,45 @@ export function JobCard({ value, onChange, onExpand, onExtractPdf, onPasteLink, 
       <div className="card-inner-sm">
         <div className="card-label-row">
           <p className="section-label">{t.job.title}</p>
-          <button className="icon-btn icon-btn-sm" onClick={onExpand}>
+          <button className="icon-btn icon-btn-sm" onClick={onExpand} disabled={Boolean(pdfFile || urlSource)}>
             <img src="/image/maximize2.png" alt="" />
           </button>
         </div>
-        <div className="textarea-box">
-          <textarea
-            style={{ height: '130px' }}
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            maxLength={MAX_LEN}
-            placeholder={t.job.placeholder}
+        {urlSource ? (
+          <UrlSourceCard
+            source={urlSource}
+            labels={t.urlSource}
+            onReplace={onPasteLink}
+            onClear={onClearUrlSource}
           />
-        </div>
-        <div className="counter-row">
-          <p className="counter">{value.length} / {MAX_LEN}</p>
-          <button className="btn-clear" onClick={() => onChange('')}>{t.job.clear}</button>
-        </div>
+        ) : pdfFile ? (
+          <PdfFileCard
+            file={pdfFile}
+            labels={t.pdfFile}
+            onReplace={() => fileRef.current?.click()}
+            onClear={onClearPdf}
+          />
+        ) : (
+          <>
+            <div className="textarea-box">
+              <textarea
+                style={{ height: '130px' }}
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                maxLength={MAX_LEN}
+                placeholder={t.job.placeholder}
+              />
+            </div>
+            <div className="counter-row">
+              <p className="counter">{value.length} / {MAX_LEN}</p>
+              <button className="btn-clear" onClick={() => onChange('')}>{t.job.clear}</button>
+            </div>
+          </>
+        )}
         <div className="btn-row">
           <button className="btn-outline" onClick={() => fileRef.current?.click()}>
             <img src="/image/upload.png" alt="" />
-            <span>{t.job.uploadPdf}</span>
+            <span>{pdfFile ? t.job.replacePdf : t.job.uploadPdf}</span>
           </button>
           <button className="btn-outline" onClick={onPasteLink}>
             <img src="/image/link.png" alt="" />
@@ -47,7 +82,7 @@ export function JobCard({ value, onChange, onExpand, onExtractPdf, onPasteLink, 
           </button>
         </div>
         <div className="divider"></div>
-        <button className="btn-primary" onClick={onGenerate} disabled={isLoading || !canGenerate}>
+        <button className="btn-primary" onClick={onGenerate} disabled={isBusy || !canGenerate}>
           <img src="/image/sparkles.png" alt="" />
           <span>{isLoading ? t.job.generating(elapsed) : t.job.generate}</span>
         </button>

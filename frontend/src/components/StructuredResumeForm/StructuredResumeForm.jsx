@@ -109,6 +109,17 @@ export function StructuredResumeForm({ data, onChange }) {
       </div>
 
       <div className={styles.field}>
+        <span className={styles.fieldLabel}>{s.salaryExpectation}</span>
+        <input
+          className={styles.fieldInput}
+          type="text"
+          placeholder={s.salaryExpectationPlaceholder}
+          value={data.salaryExpectation || ''}
+          onChange={e => set('salaryExpectation', e.target.value)}
+        />
+      </div>
+
+      <div className={styles.field}>
         <span className={styles.fieldLabel}>{s.contacts}</span>
         <div className={styles.dynamicList}>
           {data.contacts.map((c, i) => (

@@ -5,7 +5,7 @@ import styles from './InputExpandModal.module.css'
 export function InputExpandModal({ isOpen, field, value, onSave, onClose }) {
   const t = useLang()
   const [draft, setDraft] = useState(value)
-  const maxLen = field === 'resume' ? 3000 : 5000
+  const maxLen = field === 'resume' ? 4000 : 6000
   const title = field === 'resume' ? t.inputExpand.resumeTitle : t.inputExpand.jobTitle
 
   useEffect(() => {

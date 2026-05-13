@@ -18,6 +18,15 @@ function splitOnDot(line) {
   return line.split(/\s*[·•|]\s*/).map(s => s.trim()).filter(Boolean)
 }
 
+function parseSalaryLine(line) {
+  const m = (line || '').trim().match(/^(ожидаемый доход|зарплатные ожидания|expected salary|salary expectations)\s*:?\s*(.+)$/i)
+  if (!m) return null
+  return {
+    value: m[2].trim(),
+    label: /[А-Яа-яЁё]/.test(m[1]) ? 'Ожидаемый доход' : 'Expected salary',
+  }
+}
+
 function parseEntries(buf) {
   const entries = []
   let cur = null
@@ -86,7 +95,15 @@ export function parseResume(text) {
   const name = headerLines[0] || ''
   const headline = headerLines[1] || ''
   const contacts = []
+  let salaryExpectation = ''
+  let salaryLabel = ''
   for (const line of headerLines.slice(2)) {
+    const salary = parseSalaryLine(line)
+    if (salary) {
+      salaryExpectation = salary.value
+      salaryLabel = salary.label
+      continue
+    }
     contacts.push(...splitOnDot(line))
   }
 
@@ -125,7 +142,7 @@ export function parseResume(text) {
   flush()
 
   return {
-    header: { name, headline, contacts },
+    header: { name, headline, contacts, salaryExpectation, salaryLabel },
     sections,
   }
 }

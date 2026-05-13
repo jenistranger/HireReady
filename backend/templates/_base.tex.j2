@@ -13,18 +13,21 @@
 
 {\Large\bfseries << name | tex >>}\par
 {\itshape << headline | tex >>}\par
+<% if salary_expectation %>
+{\small << salary_label | tex >>: << salary_expectation | tex >>}\par
+<% endif %>
 <% if contacts %>
 {\small << contacts | join(' \\textbullet{} ') | tex >>}\par
 <% endif %>
 \bigskip
 
 <% if summary %>
-\textbf{SUMMARY}\par
+\textbf{<< labels.summary | tex >>}\par
 << summary | tex >>\par\smallskip
 <% endif %>
 
 <% if experience %>
-\textbf{EXPERIENCE}\par
+\textbf{<< labels.experience | tex >>}\par
 <% for e in experience %>
 \textbf{<< e.title | tex >>}<% if e.subtitle %> \textbullet{} << e.subtitle | tex >><% endif %>\hfill << e.period | tex >>\par
 <% if e.location %>{\small << e.location | tex >>}\par<% endif %>
@@ -38,14 +41,14 @@
 <% endif %>
 
 <% if education %>
-\textbf{EDUCATION}\par
+\textbf{<< labels.education | tex >>}\par
 <% for e in education %>
 \textbf{<< e.title | tex >>}<% if e.subtitle %> \textbullet{} << e.subtitle | tex >><% endif %>\hfill << e.period | tex >>\par
 <% endfor %>
 <% endif %>
 
 <% if skills %>
-\textbf{SKILLS}\par
+\textbf{<< labels.skills | tex >>}\par
 <% for s in skills %>
 <% if s.label %>\textbf{<< s.label | tex >>:} <% endif %><< s.value | tex >>\par
 <% endfor %>

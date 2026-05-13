@@ -72,16 +72,17 @@
 \begin{center}
 {\headingfont\bfseries\fontsize{18}{20}\selectfont\color{ink}<< name | tex >>}\par
 <% if headline %>\vspace{2pt}{\small\color{cvgreen}<< headline | tex >>}\par<% endif %>
+<% if salary_expectation %>\vspace{2pt}{\small\color{muted}<< salary_label | tex >>: << salary_expectation | tex >>}\par<% endif %>
 \end{center}
 <% endif %>
 
 <% if summary %>
-\section*{About}
+\section*{<< labels.about | tex >>}
 {\small\color{ink}<< summary | tex >>}
 <% endif %>
 
 <% if emails or phones or links or other_contacts %>
-\section*{Contact}
+\section*{<< labels.contact | tex >>}
 <% for p in phones %>\bubble{\faPhone}{\texttt{<< p | tex >>}}<% endfor %>
 <% for e in emails %>\bubble{\faAt}{\texttt{<< e | tex >>}}<% endfor %>
 <% for l in links %>\bubble{\faGlobe}{\texttt{<< l | tex >>}}<% endfor %>
@@ -89,7 +90,7 @@
 <% endif %>
 
 <% if skills %>
-\section*{Skills}
+\section*{<< labels.skills | tex >>}
 <% for s in skills %>
 <% if s.label %>{\color{cvgreen}\bfseries\small\MakeUppercase{<< s.label | tex >>}}\par\vspace{3pt}<% endif %>
 <% for v in (s.value or '').split(',') %><% if v.strip() %>\pill{<< v.strip() | tex >>}\enspace<% endif %><% endfor %>
@@ -98,7 +99,7 @@
 <% endif %>
 
 <% if languages %>
-\section*{Languages}
+\section*{<< labels.languages | tex >>}
 {\small\color{ink}<< languages | tex >>}
 <% endif %>
 
@@ -112,7 +113,7 @@
 \vspace{4mm}
 
 <% if experience %>
-\section*{Experience}
+\section*{<< labels.experience | tex >>}
 <% for e in experience %>
 \hipevent{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
 <% if e.description %>{\small\color{muted}<< e.description | tex >>}\par<% endif %>%
@@ -122,7 +123,7 @@
 <% endif %>
 
 <% if projects %>
-\section*{Projects}
+\section*{<< labels.projects | tex >>}
 <% for e in projects %>
 \hipevent{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
 <% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item \small << b | tex >><% endfor %>\end{itemize}<% endif %>%
@@ -131,7 +132,7 @@
 <% endif %>
 
 <% if education %>
-\section*{Education}
+\section*{<< labels.education | tex >>}
 <% for e in education %>
 \hipevent{<< e.period | tex >>}{<< e.title | tex >>}{<< e.subtitle | tex >>}{<< e.location | tex >>}{%
 <% if e.bullets %>\begin{itemize}<% for b in e.bullets %>\item \small << b | tex >><% endfor %>\end{itemize}<% endif %>%
