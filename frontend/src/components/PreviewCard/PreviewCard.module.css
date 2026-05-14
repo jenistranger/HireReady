@@ -74,12 +74,23 @@
 
 /* Empty state — A4 skeleton */
 .paperCard {
-  width: 380px; max-width: 100%; aspect-ratio: 210/297;
+  width: min(380px, calc(100% - 48px));
+  max-height: calc(100% - 48px);
+  aspect-ratio: 210 / 297;
+  align-self: center;
   background: rgba(255,255,255,1); border-radius: 3px;
   box-shadow: 0 4px 24px 0 rgba(0,0,0,0.10);
   padding: 32px 28px;
   display: flex; flex-direction: column; gap: 10px;
   overflow: hidden;
+}
+
+@media (max-width: 520px) {
+  .paperCard {
+    width: min(340px, calc(100% - 32px));
+    max-height: calc(100% - 32px);
+    padding: 26px 22px;
+  }
 }
 
 /* Loading */

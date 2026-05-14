@@ -72,6 +72,16 @@ export async function downloadPdf(text, template, avatar) {
   return resp.blob()
 }
 
+export async function getCurrentUser() {
+  const resp = await fetch('/api/auth/me')
+  if (!resp.ok) return null
+  return resp.json()
+}
+
+export async function logout() {
+  await fetch('/api/auth/logout', { method: 'POST' })
+}
+
 export async function previewPdf(text, template, { signal, avatar } = {}) {
   const resp = await fetch('/api/pdf', {
     method: 'POST',

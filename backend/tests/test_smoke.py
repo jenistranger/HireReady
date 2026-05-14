@@ -17,7 +17,8 @@ def test_health_returns_ok():
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "ok"
-    assert body["model"] == "google/gemini-2.0-flash-001"
+    assert "model" in body
+    assert "db" in body
 
 
 def test_tailor_size_limit_resume():

@@ -19,6 +19,9 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from latex import compile_pdf, TEMPLATES as LATEX_TEMPLATES, LatexCompileError
+import db
+import schema
+import auth
 
 load_dotenv()
 
@@ -395,6 +398,7 @@ app = FastAPI(title="Resume Tailor")
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.include_router(auth.router)
 
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
@@ -415,6 +419,14 @@ async def startup_check():
         logger.error("OPENROUTER_API_KEY is not set. Add openrouter_api_key=... to your .env file.")
     else:
         logger.info("Resume Tailor started. Model: %s", MODEL)
+    await db.init_pool()
+    await schema.init_schema()
+    await auth.cleanup_expired()
+
+
+@app.on_event("shutdown")
+async def shutdown_cleanup():
+    await db.close_pool()
 
 
 # ── Models ─────────────────────────────────────────────────────────
@@ -556,18 +568,19 @@ async def _call_openrouter(system_prompt: str, user_message: str) -> str:
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "model": MODEL, "api_key_set": bool(OPENROUTER_API_KEY)}
+    db_ok = await db.check_db()
+    return {"status": "ok", "model": MODEL, "api_key_set": bool(OPENROUTER_API_KEY), "db": db_ok}
 
 
 @app.post("/api/tailor", response_model=TailorResponse)
 @limiter.limit("5/minute")
 async def tailor_resume(request: Request, body: TailorRequest):
-    if not OPENROUTER_API_KEY:
-        raise HTTPException(status_code=500, detail="API ключ не настроен")
     if not body.resume.strip():
         raise HTTPException(status_code=400, detail="Резюме не может быть пустым")
     if not body.job_description.strip():
         raise HTTPException(status_code=400, detail="Описание вакансии не может быть пустым")
+    if not OPENROUTER_API_KEY:
+        raise HTTPException(status_code=500, detail="API ключ не настроен")
 
     output_lang = _resume_output_lang(body.resume, body.job_description)
     user_message = (
@@ -590,10 +603,10 @@ async def tailor_resume(request: Request, body: TailorRequest):
 @app.post("/api/improve", response_model=ImproveResponse)
 @limiter.limit("5/minute")
 async def improve_resume(request: Request, body: ImproveRequest):
-    if not OPENROUTER_API_KEY:
-        raise HTTPException(status_code=500, detail="API ключ не настроен")
     if not body.resume.strip():
         raise HTTPException(status_code=400, detail="Резюме не может быть пустым")
+    if not OPENROUTER_API_KEY:
+        raise HTTPException(status_code=500, detail="API ключ не настроен")
 
     output_lang = _resume_output_lang(body.resume)
     user_message = (

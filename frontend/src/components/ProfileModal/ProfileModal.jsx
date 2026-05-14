@@ -1,9 +1,24 @@
 import { useLang } from '../../LangContext'
+import { useAuth } from '../../context/AuthContext'
 import styles from './ProfileModal.module.css'
+
+function initials(name, email) {
+  if (name) return name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  if (email) return email[0].toUpperCase()
+  return '?'
+}
 
 export function ProfileModal({ isOpen, onClose }) {
   const t = useLang()
+  const { user, logout } = useAuth()
   if (!isOpen) return null
+
+  async function handleLogout() {
+    onClose()
+    await logout()
+  }
+
+  const init = initials(user?.name, user?.email)
 
   return (
     <div className={styles.overlay} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -14,24 +29,21 @@ export function ProfileModal({ isOpen, onClose }) {
         </div>
         <div className={styles.body}>
           <div className={styles.avatarSection}>
-            <div className={styles.avatarLg}><span>AJ</span></div>
-            <button className={styles.changePhotoBtn}>{t.profile.changePhoto}</button>
+            {user?.avatar_url ? (
+              <img className={styles.avatarLgImg} src={user.avatar_url} alt="" referrerPolicy="no-referrer" />
+            ) : (
+              <div className={styles.avatarLg}><span>{init}</span></div>
+            )}
           </div>
           <div className={styles.divider}></div>
           <div className={styles.fields}>
-            <div className={styles.fieldRow}>
-              <div className={styles.fieldGroup}>
-                <label className={styles.fieldLabel}>{t.profile.firstName}</label>
-                <input className={styles.input} type="text" placeholder="Alex" />
-              </div>
-              <div className={styles.fieldGroup}>
-                <label className={styles.fieldLabel}>{t.profile.lastName}</label>
-                <input className={styles.input} type="text" placeholder="Johnson" />
-              </div>
+            <div className={styles.fieldGroup}>
+              <label className={styles.fieldLabel}>{t.profile.firstName}</label>
+              <div className={styles.fieldValue}>{user?.name || '—'}</div>
             </div>
             <div className={styles.fieldGroup}>
               <label className={styles.fieldLabel}>{t.profile.email}</label>
-              <input className={styles.input} type="email" placeholder="alex@email.com" />
+              <div className={styles.fieldValue}>{user?.email || '—'}</div>
             </div>
           </div>
           <div className={styles.divider}></div>
@@ -44,8 +56,8 @@ export function ProfileModal({ isOpen, onClose }) {
           </div>
         </div>
         <div className={styles.footer}>
+          <button className={styles.logoutBtn} onClick={handleLogout}>{t.auth.logout}</button>
           <button className={styles.cancelBtn} onClick={onClose}>{t.profile.cancel}</button>
-          <button className={styles.saveBtn}>{t.profile.save}</button>
         </div>
       </div>
     </div>

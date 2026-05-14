@@ -1,0 +1,174 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 64px 24px 80px;
+  gap: 48px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+.title {
+  font-size: 32px;
+  font-family: var(--ui-font);
+  font-weight: 800;
+  color: rgba(30,30,30,1);
+  letter-spacing: -0.3px;
+}
+.subtitle {
+  font-size: 15px;
+  font-family: var(--ui-font);
+  color: var(--text-muted);
+}
+
+/* Plans grid */
+.plans {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  width: 100%;
+  max-width: 700px;
+}
+
+.planCard {
+  background: var(--surface);
+  border: 1px solid rgba(226,230,238,1);
+  border-radius: 16px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.planCardPro {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.planTop {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.planName {
+  font-size: 13px;
+  font-family: var(--ui-font);
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.planPrice {
+  font-size: 36px;
+  font-family: var(--ui-font);
+  font-weight: 800;
+  color: rgba(30,30,30,1);
+  line-height: 1;
+  letter-spacing: -1px;
+}
+.planDesc {
+  font-size: 13px;
+  font-family: var(--ui-font);
+  color: var(--text-muted);
+}
+
+.proHeader {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+.comingSoonBadge {
+  font-size: 11px;
+  font-family: var(--ui-font);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+  background: var(--accent-light);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
+/* Features */
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+.feature {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 14px;
+  font-family: var(--ui-font);
+  color: rgba(30,30,30,1);
+  line-height: 1.4;
+}
+.check {
+  color: var(--accent);
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* CTAs */
+.freeCta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: white;
+  font-size: 14px;
+  font-family: var(--ui-font);
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 4px 16px 0 rgba(59,111,232,0.25);
+  transition: opacity 0.15s;
+}
+.freeCta:hover { opacity: 0.9; }
+
+.proCta {
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgba(226,230,238,1);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: var(--ui-font);
+  font-weight: 600;
+  cursor: not-allowed;
+  opacity: 0.7;
+  width: 100%;
+}
+
+/* Back link */
+.backLink {
+  font-size: 13px;
+  font-family: var(--ui-font);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.backLink:hover { color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 560px) {
+  .plans { grid-template-columns: 1fr; }
+  .body { padding: 40px 20px 60px; gap: 36px; }
+}
