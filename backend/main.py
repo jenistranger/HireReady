@@ -9,6 +9,7 @@ from urllib.parse import urljoin, urlparse
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from typing import Literal, Optional
 from pydantic import BaseModel, field_validator
 import httpx
@@ -35,6 +36,20 @@ OPENROUTER_API_KEY = os.getenv("openrouter_api_key")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "deepseek/deepseek-v4-flash"
 MAX_PDF_SIZE = 5 * 1024 * 1024  # 5 MB
+
+
+class SPAStaticFiles(StaticFiles):
+    @staticmethod
+    def should_fallback_to_index(path: str, scope) -> bool:
+        return scope["method"] in ("GET", "HEAD") and "." not in os.path.basename(path)
+
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code != 404 or not self.should_fallback_to_index(path, scope):
+                raise
+            return await super().get_response("index.html", scope)
 
 SYSTEM_PROMPT = """Ты — профессиональный HR-консультант и эксперт по составлению резюме. Твоя задача — переработать резюме кандидата под конкретную вакансию.
 
@@ -723,4 +738,4 @@ async def export_pdf(request: Request, body: PdfRequest):
 import os as _os
 _static_dir = "/app/static" if _os.path.isdir("/app/static") else _os.path.join(_os.path.dirname(__file__), "static")
 if _os.path.isdir(_static_dir):
-    app.mount("/", StaticFiles(directory=_static_dir, html=True), name="static")
+    app.mount("/", SPAStaticFiles(directory=_static_dir, html=True), name="static")

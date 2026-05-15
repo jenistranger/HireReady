@@ -27,7 +27,8 @@ export function LoginModal({ isOpen, onClose }) {
   if (!isOpen) return null
 
   function loginWith(provider) {
-    window.location.href = `/api/auth/${provider}/start`
+    const next = `${window.location.pathname}${window.location.search}${window.location.hash}`
+    window.location.href = `/api/auth/${provider}/start?next=${encodeURIComponent(next || '/app')}`
   }
 
   return (

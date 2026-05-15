@@ -6,8 +6,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from fastapi.testclient import TestClient
+from auth import _safe_redirect_path
 import main as app_module
-from main import app, parse_resume, _extract_html_title, _is_hh_url, _normalize_section_headings
+from main import SPAStaticFiles, app, parse_resume, _extract_html_title, _is_hh_url, _normalize_section_headings
 
 client = TestClient(app)
 
@@ -19,6 +20,24 @@ def test_health_returns_ok():
     assert body["status"] == "ok"
     assert "model" in body
     assert "db" in body
+
+
+def test_spa_static_files_fallback_rules():
+    get_scope = {"method": "GET"}
+    post_scope = {"method": "POST"}
+
+    assert SPAStaticFiles.should_fallback_to_index("app", get_scope)
+    assert SPAStaticFiles.should_fallback_to_index("pricing", get_scope)
+    assert not SPAStaticFiles.should_fallback_to_index("missing.js", get_scope)
+    assert not SPAStaticFiles.should_fallback_to_index("app", post_scope)
+
+
+def test_safe_redirect_path_allows_only_frontend_routes():
+    assert _safe_redirect_path("/app?x=1#top") == "/app?x=1#top"
+    assert _safe_redirect_path("/pricing") == "/pricing"
+    assert _safe_redirect_path("https://evil.test/app") == "/app"
+    assert _safe_redirect_path("//evil.test/app") == "/app"
+    assert _safe_redirect_path("/api/auth/google/callback") == "/app"
 
 
 def test_tailor_size_limit_resume():

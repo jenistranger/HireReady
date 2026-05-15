@@ -4,7 +4,7 @@ import secrets
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 import httpx
@@ -38,6 +38,28 @@ def _session_secret() -> str:
 
 def _app_base_url() -> str:
     return os.getenv("APP_BASE_URL", "http://localhost:47821").rstrip("/")
+
+
+def _safe_redirect_path(value: str | None, default: str = "/app") -> str:
+    if not value:
+        return default
+    if "\\" in value or not value.startswith("/") or value.startswith("//"):
+        return default
+
+    parsed = urlparse(value)
+    if parsed.scheme or parsed.netloc:
+        return default
+
+    path = parsed.path or "/"
+    if path not in {"/", "/app", "/pricing"}:
+        return default
+
+    redirect = path
+    if parsed.query:
+        redirect += f"?{parsed.query}"
+    if parsed.fragment:
+        redirect += f"#{parsed.fragment}"
+    return redirect
 
 def _client_id(provider: str) -> str:
     return os.getenv(f"{provider.upper()}_CLIENT_ID", "")
@@ -93,7 +115,7 @@ async def oauth_start(provider: str, request: Request):
 
     raw_state = secrets.token_urlsafe(32)
     state_hash = _hash_state(raw_state)
-    redirect_after = request.query_params.get("next", "/app")
+    redirect_after = _safe_redirect_path(request.query_params.get("next"), "/app")
     expires = datetime.now(timezone.utc) + timedelta(minutes=STATE_MINUTES)
 
     try:
@@ -153,7 +175,7 @@ async def oauth_callback(provider: str, request: Request):
     if not state_row:
         return RedirectResponse("/app?auth_error=state", status_code=302)
 
-    redirect_after = state_row["redirect_after"] or "/app"
+    redirect_after = _safe_redirect_path(state_row["redirect_after"], "/app")
 
     # Exchange code for access token
     cfg = PROVIDERS[provider]
